@@ -1,0 +1,67 @@
+{
+  "expo": {
+    "name": "7StarWorker",
+    "slug": "7starworker",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "scheme": "starworker",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#08090E"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.7starexperts.worker",
+      "buildNumber": "1"
+    },
+    "android": {
+      "package": "com.starexperts.worker",
+      "versionCode": 1
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-font",
+        {
+          "fonts": []
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow 7StarWorker to access your camera for proof of job completion."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow 7StarWorker to access photos for document uploads."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "7StarWorker needs your location to show customers where you are during a job.",
+          "locationAlwaysPermission": "7StarWorker uses background location to track your route during active jobs.",
+          "isIosBackgroundLocationEnabled": true,
+          "isAndroidBackgroundLocationEnabled": true
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": false
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "4f599541-d6d1-4ca4-a6d9-653586cf17c3"
+      }
+    },
+    "owner": "stars-seven"
+  }
+}
