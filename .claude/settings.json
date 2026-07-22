@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx expo start*)",
+      "Bash(npx expo start --android)",
+      "Bash(npx expo start --ios)",
+      "Bash(eas build*)",
+      "Bash(npm install*)",
+      "Bash(npx expo install*)"
+    ]
+  }
+}

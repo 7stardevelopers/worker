@@ -1,0 +1,47 @@
+,,,,,,,,
+Service Category,Service Type,Starting Price (INR),Time Duration,Details,Items Total,visitation Fee,Tax & fee,Total
+Electrical Services,consultation/ Inspection,99-199,20-30 min,Issue check & diagnosis,49,79,19,147
+Electrical Services,Switch/Socket Repair,99-199,15-30 min,Loose or broken switch fix,79,79,19,177
+Electrical Services,Switch/Socket Replacement,99-249,15-30 min,New switch installation,109,79,19,207
+Electrical Services,New Switch Installation,149-299,20-40 min,New wiring connection,239,79,49,367
+Electrical Services,Fan Installation,199-399,30-60 min,Ceiling fan fitting,109,79,19,207
+Electrical Services,Fan Repair,99-299,20-45 min,Speed/noise issue fix,109,79,19,207
+Electrical Services,Fan Regulator Repair,99-199,15-30 min,Regulator fixing,49,79,19,147
+Electrical Services,Lights Installation,99-199,15-30 min,ceiling light fitting,129,79,39,247
+Electrical Services,Tube Light Installation,149-299,20-40 min,Tube light setup,129,79,39,247
+Electrical Services,Chandelier Installation,499-1500,1-3 hrs,upto 6bulb installation,549,,59,608
+Electrical Services,Inverter Installation 1battery,500-1500,1-2 hrs,Home inverter setup,369,79,59,507
+Electrical Services,Inverter Repair,199-799,30-90 min,Basic repair work,210,79,39,328
+Electrical Services,MCB Installation,199-499,60min,single pole MCB installation,99,79,19,197
+Electrical Services,MCB Repair,99-299,15-30 min,Fault fixing,79,79,19,177
+Electrical Services,Distribution Board Work,499-1500,1-3 hrs,DB wiring work,  ,,,
+Electrical Services,Earthing Work,1000-3000,2-5 hrs,Safety earthing installation,,,,
+Electrical Services,Wiring Repair (Minor),199-499,30-60 min,small wiring fixes (per 5m),159,79,39,277
+Electrical Services,Wiring Installation (New),20-60 per sq ft,1-3 days,Full house wiring,,,,
+Electrical Services,Short Circuit Fix,199-999,30-120 min,Fault detection & repair,79,79,19,117
+Electrical Services,  Appliance connection,99-299,15-30 min,Washing machine/fridge connection,,,,
+Electrical Services,Geyser installation,299-799,30-60 min,Water heater setup,399,79,59,537
+Electrical Services,Geyser Repair,199-999,30-90 min,Heating issue fix,,,,
+Electrical Services,Exhaust Fan Installation,99-299,20-40 min,Bathroom/kitchen fan fitting,99,79,19,
+Electrical Services,AC Power Connection,199-499,20-40 min,Power point setup,   ,,,
+Electrical Services,Outdoor Light Installation,199-599,30-60 min,Garden/balcony lights,  ,79,39,242
+Electrical Services,Smart Device Installation,199-799,30-60 min,Smart switches/home automation setup,119,79,19,217
+,,,,,,,,
+,,,,,,,,
+Work Type,Min Price (?),Max Price (?),Unit,Extra Charges,GST (%),,Final Notes,
+Switchboard Installation,169,169,Per unit,None,18,,Standard service,
+Light Installation,69,69,Per unit,None,18,,Starting price,
+Doorbell Installation,59,59,Per unit,None,18,,Simple install,
+MCB Installation,99,149,Per unit,None,18,,Depends on type,
+Fuse Replacement,79,79,Per unit,None,18,,Quick fix,
+Submeter Installation,219,219,Per unit,None,18,,Includes setup,
+External Wiring,89,89,Per 5 meters,Material extra,18,,Basic wiring,
+Internal Wiring,159,159,Per 5 meters,Material extra,18,,Wall work included,
+TV Installation,379,379,Per unit,Bracket extra,18,,Wall mount optional,
+Geyser Installation,399,399,Per unit,Pipes extra,18,,Includes fitting,
+CCTV Installation,229,229,Per unit,Wire extra,18,,Basic setup,
+EV Charger Installation,750,750,Per unit,Depends on load,18,,High power work,
+Consultation Visit,49,49,Per visit,None,18,,Inspection only,
+Standard Service,0,0,8AM–8PM,None,0,,Normal hours,
+Night Service,150,150,Per visit,After 8PM,18,,Extra charge,
+GST Applicable,18,18,All services,Included/Added,18,,Proper invoice,

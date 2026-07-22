@@ -43,6 +43,16 @@ export default function NotificationsScreen() {
     setRefreshing(false);
   }, [fetchNotifs]);
 
+  const markRead = useCallback(async (notif) => {
+    if (notif.read) return;
+    setNotifs(prev => prev.map(n => n.id === notif.id ? { ...n, read: true } : n));
+    try {
+      await api.patch(`/notifications/${notif.id}/read`, {}, token);
+    } catch {
+      // non-fatal — local state already updated
+    }
+  }, [token]);
+
   return (
     <SafeAreaView style={[styles.root, { backgroundColor: Colors.background }]} edges={['top']}>
       <View style={styles.header}>
@@ -63,13 +73,17 @@ export default function NotificationsScreen() {
             : null
         }
         renderItem={({ item }) => (
-          <View style={[
-            styles.item,
-            {
-              backgroundColor: item.read ? Colors.surface : Colors.primary + '10',
-              borderColor: item.read ? Colors.border : Colors.primary + '30',
-            },
-          ]}>
+          <TouchableOpacity
+            onPress={() => markRead(item)}
+            activeOpacity={0.75}
+            style={[
+              styles.item,
+              {
+                backgroundColor: item.read ? Colors.surface : Colors.primary + '10',
+                borderColor: item.read ? Colors.border : Colors.primary + '30',
+              },
+            ]}
+          >
             <View style={[styles.iconWrap, { backgroundColor: item.color + '20' }]}>
               <Ionicons name={item.icon} size={20} color={item.color} />
             </View>
@@ -79,7 +93,7 @@ export default function NotificationsScreen() {
               <Text style={[styles.time, { color: Colors.subtleForeground }]}>{item.time}</Text>
             </View>
             {!item.read && <View style={[styles.unreadDot, { backgroundColor: Colors.primary }]} />}
-          </View>
+          </TouchableOpacity>
         )}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} colors={[Colors.primary]} />

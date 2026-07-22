@@ -51,7 +51,7 @@ export default function OtpScreen() {
     setError('');
 
     try {
-      const res = await api.post('/auth/verify-otp', { phone, otp: code });
+      const res = await api.post('/auth/verify-otp', { phone, otp: code, role: 'PROVIDER' });
       const { access_token, refresh_token, user } = res.data;
       await login(access_token, refresh_token, user);
       // index.jsx reads provider status and routes to (tabs) or onboarding

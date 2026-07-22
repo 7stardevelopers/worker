@@ -29,11 +29,10 @@ export default function PersonalScreen() {
     if (!name.trim()) { Alert.alert('Required', 'Please enter your name'); return; }
     setLoading(true);
     try {
-      await api.patch('/providers/me', {
-        name: name.trim(),
-        bio: bio.trim(),
-        years_experience: parseInt(years) || 0,
-      }, token);
+      await Promise.all([
+        api.patch('/auth/me', { name: name.trim() }, token),
+        api.patch('/providers/me', { bio: bio.trim(), years_experience: parseInt(years) || 0 }, token),
+      ]);
       await updateUser({ name: name.trim() });
       router.push('/onboarding/services');
     } catch (e) {

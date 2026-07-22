@@ -26,6 +26,12 @@
     "plugins": [
       "expo-router",
       [
+        "expo-notifications",
+        {
+          "color": "#6366F1"
+        }
+      ],
+      [
         "expo-font",
         {
           "fonts": []

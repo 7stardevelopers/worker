@@ -23,31 +23,32 @@ const DOCS = [
 export default function DocumentsScreen() {
   const { Colors } = useTheme();
   const { token } = useAuth();
-  const [uris,    setUris]    = useState({});
+  const [files,   setFiles]   = useState({});
   const [saving,  setSaving]  = useState(false);
 
   const pickDocument = async (key) => {
     const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.8 });
     if (result.canceled) return;
-    setUris(prev => ({ ...prev, [key]: result.assets[0].uri }));
+    const asset = result.assets[0];
+    setFiles(prev => ({ ...prev, [key]: { uri: asset.uri, mimeType: asset.mimeType ?? 'image/jpeg' } }));
   };
 
   const handleNext = async () => {
-    const missing = DOCS.filter(d => !uris[d.key]);
+    const missing = DOCS.filter(d => !files[d.key]);
     if (missing.length > 0) {
       Alert.alert('Required', `Please upload: ${missing.map(d => d.title).join(', ')}`);
       return;
     }
     setSaving(true);
     try {
-      const uploaded = {};
       for (const doc of DOCS) {
-        const presignRes = await api.post('/media/presign', { content_type: 'image/jpeg', folder: 'documents' }, token);
-        const { upload_url, object_url } = presignRes.data;
-        await uploadToS3(upload_url, uris[doc.key], 'image/jpeg');
-        uploaded[doc.key] = object_url;
+        const { uri, mimeType } = files[doc.key];
+        const doc_type = doc.key.toUpperCase();
+        const presignRes = await api.post('/documents/upload-url', { doc_type, content_type: mimeType }, token);
+        const { upload_url, document_id } = presignRes.data;
+        await uploadToS3(upload_url, uri, mimeType);
+        await api.post('/documents/confirm', { document_id }, token);
       }
-      await api.patch('/providers/me/documents', uploaded, token);
       router.push('/onboarding/bank');
     } catch (e) {
       Alert.alert('Upload Failed', e.message);
@@ -83,8 +84,8 @@ export default function DocumentsScreen() {
               key={doc.key}
               title={doc.title}
               subtitle={doc.subtitle}
-              uri={uris[doc.key] ?? null}
-              status={uris[doc.key] ? 'pending' : 'empty'}
+              uri={files[doc.key]?.uri ?? null}
+              status={files[doc.key] ? 'pending' : 'empty'}
               onPress={() => pickDocument(doc.key)}
             />
           ))}

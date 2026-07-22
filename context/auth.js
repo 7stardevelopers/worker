@@ -1,5 +1,8 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Notifications from 'expo-notifications';
+import Constants from 'expo-constants';
+import { api, setTokenRefreshCallback } from '@utils/api';
 
 const ACCESS_TOKEN_KEY  = 'auth_access_token';
 const REFRESH_TOKEN_KEY = 'auth_refresh_token';
@@ -13,13 +16,18 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    setTokenRefreshCallback((newToken) => setToken(newToken));
     Promise.all([
       AsyncStorage.getItem(ACCESS_TOKEN_KEY),
       AsyncStorage.getItem(USER_KEY),
     ]).then(([storedToken, storedUser]) => {
-      if (storedToken) {
+      const parsedUser = storedUser ? JSON.parse(storedUser) : null;
+      // Auto-logout if stored user has wrong role (e.g. CUSTOMER in Worker app)
+      if (storedToken && parsedUser?.role === 'PROVIDER') {
         setToken(storedToken);
-        setUser(storedUser ? JSON.parse(storedUser) : null);
+        setUser(parsedUser);
+      } else if (storedToken) {
+        AsyncStorage.multiRemove([ACCESS_TOKEN_KEY, REFRESH_TOKEN_KEY, USER_KEY]);
       }
     }).finally(() => setLoading(false));
   }, []);
@@ -32,7 +40,22 @@ export function AuthProvider({ children }) {
     ]);
     setToken(accessToken);
     setUser(u);
+    registerPushToken(accessToken);
   };
+
+  async function registerPushToken(accessToken) {
+    // expo-notifications push tokens don't work in Expo Go (SDK 53+)
+    if (Constants.appOwnership === 'expo') return;
+    try {
+      const { status } = await Notifications.requestPermissionsAsync();
+      if (status !== 'granted') return;
+      const projectId = Constants.expoConfig?.extra?.eas?.projectId;
+      const tokenData = await Notifications.getExpoPushTokenAsync({ projectId });
+      await api.post('/notifications/register', { token: tokenData.data }, accessToken);
+    } catch {
+      // non-fatal — worker will still function, just won't receive push
+    }
+  }
 
   const logout = async () => {
     await AsyncStorage.multiRemove([ACCESS_TOKEN_KEY, REFRESH_TOKEN_KEY, USER_KEY]);
