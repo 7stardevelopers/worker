@@ -1,8 +1,10 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
+import { Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
 import Constants from 'expo-constants';
-import { api, setTokenRefreshCallback } from '@utils/api';
+import { router } from 'expo-router';
+import { api, setTokenRefreshCallback, setSessionExpiredCallback } from '@utils/api';
 
 const ACCESS_TOKEN_KEY  = 'auth_access_token';
 const REFRESH_TOKEN_KEY = 'auth_refresh_token';
@@ -14,9 +16,29 @@ export function AuthProvider({ children }) {
   const [user, setUser]   = useState(null);
   const [token, setToken] = useState(null);
   const [loading, setLoading] = useState(true);
+  const alertShownRef = useRef(false);
 
   useEffect(() => {
     setTokenRefreshCallback((newToken) => setToken(newToken));
+    setSessionExpiredCallback(async () => {
+      if (alertShownRef.current) return;
+      alertShownRef.current = true;
+      await AsyncStorage.multiRemove([ACCESS_TOKEN_KEY, REFRESH_TOKEN_KEY, USER_KEY]);
+      Alert.alert(
+        'Session Expired',
+        'Your session has expired. Please log in again.',
+        [{
+          text: 'Go to Login',
+          onPress: () => {
+            alertShownRef.current = false;
+            setToken(null);
+            setUser(null);
+            router.replace('/(auth)/login');
+          },
+        }],
+        { cancelable: false },
+      );
+    });
     Promise.all([
       AsyncStorage.getItem(ACCESS_TOKEN_KEY),
       AsyncStorage.getItem(USER_KEY),
@@ -51,7 +73,7 @@ export function AuthProvider({ children }) {
       if (status !== 'granted') return;
       const projectId = Constants.expoConfig?.extra?.eas?.projectId;
       const tokenData = await Notifications.getExpoPushTokenAsync({ projectId });
-      await api.post('/notifications/register', { token: tokenData.data }, accessToken);
+      await api.post('/notifications/register', { token_id: tokenData.data }, accessToken);
     } catch {
       // non-fatal — worker will still function, just won't receive push
     }

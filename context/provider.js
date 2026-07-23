@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { api } from '@utils/api';
 import { useAuth } from '@context/auth';
 
@@ -28,6 +28,17 @@ export function ProviderProvider({ children }) {
     } finally {
       setLoading(false);
       setProfileLoaded(true);
+    }
+  }, [token]);
+
+  // Auto-fetch whenever the token changes (login / logout)
+  useEffect(() => {
+    if (token) {
+      fetchProfile();
+    } else {
+      setProfile(null);
+      setIsAvailable(false);
+      setProfileLoaded(false);
     }
   }, [token]);
 

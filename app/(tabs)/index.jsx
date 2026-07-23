@@ -136,7 +136,7 @@ export default function JobsScreen() {
         }
         ListEmptyComponent={
           loading
-            ? Array.from({ length: 4 }).map((_, i) => <Skeleton.BookingCard key={i} />)
+            ? <View>{Array.from({ length: 4 }).map((_, i) => <Skeleton.BookingCard key={i} />)}</View>
             : <EmptyState
                 icon="briefcase-outline"
                 title="No jobs yet"

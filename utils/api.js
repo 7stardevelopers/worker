@@ -5,6 +5,9 @@ const BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
 let onTokenRefreshed = null;
 export function setTokenRefreshCallback(cb) { onTokenRefreshed = cb; }
 
+let onSessionExpired = null;
+export function setSessionExpiredCallback(cb) { onSessionExpired = cb; }
+
 async function refreshAccessToken() {
   const refreshToken = await AsyncStorage.getItem('auth_refresh_token');
   if (!refreshToken) throw new Error('No refresh token');
@@ -36,6 +39,7 @@ async function request(method, path, body, token, isRetry = false) {
       const newToken = await refreshAccessToken();
       return request(method, path, body, newToken, true);
     } catch {
+      onSessionExpired?.();
       const err = new Error('Session expired. Please log in again.');
       err.status = 401;
       throw err;

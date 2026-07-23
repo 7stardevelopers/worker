@@ -44,7 +44,7 @@ export default function EarningsScreen() {
         fetchProfile(),
         api.get('/providers/me/earnings', token),
       ]);
-      const raw = Array.isArray(earningsRes?.data) ? earningsRes.data : [];
+      const raw = Array.isArray(earningsRes?.data?.items) ? earningsRes.data.items : [];
       setEarnings(raw.map(normalizeEarning));
 
       // build 7-day chart data
@@ -171,7 +171,7 @@ export default function EarningsScreen() {
         }
         ListEmptyComponent={
           loading
-            ? Array.from({ length: 5 }).map((_, i) => <Skeleton.BookingCard key={i} />)
+            ? <View>{Array.from({ length: 5 }).map((_, i) => <Skeleton.BookingCard key={i} />)}</View>
             : <EmptyState icon="wallet-outline" title="No earnings yet" subtitle="Completed jobs will appear here" compact />
         }
         renderItem={({ item }) => {

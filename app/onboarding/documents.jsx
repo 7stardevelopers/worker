@@ -1,17 +1,17 @@
 import React, { useState } from 'react';
 import {
-  View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert,
+  View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
+import * as FileSystem from 'expo-file-system/legacy';
 import { useTheme } from '@context/theme';
 import { useAuth } from '@context/auth';
 import { FontSize, FontWeight, Spacing, Radius } from '@constants/theme';
 import { api } from '@utils/api';
-import { uploadToS3 } from '@utils/s3Upload';
 import DocumentUploadCard from '@components/DocumentUploadCard';
 
 const DOCS = [
@@ -23,8 +23,9 @@ const DOCS = [
 export default function DocumentsScreen() {
   const { Colors } = useTheme();
   const { token } = useAuth();
-  const [files,   setFiles]   = useState({});
-  const [saving,  setSaving]  = useState(false);
+  const [files,        setFiles]        = useState({});
+  const [saving,       setSaving]       = useState(false);
+  const [uploadStatus, setUploadStatus] = useState('');
 
   const pickDocument = async (key) => {
     const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.8 });
@@ -41,19 +42,23 @@ export default function DocumentsScreen() {
     }
     setSaving(true);
     try {
-      for (const doc of DOCS) {
+      for (let i = 0; i < DOCS.length; i++) {
+        const doc = DOCS[i];
+        setUploadStatus(`Uploading ${doc.title} (${i + 1} of ${DOCS.length})...`);
         const { uri, mimeType } = files[doc.key];
         const doc_type = doc.key.toUpperCase();
-        const presignRes = await api.post('/documents/upload-url', { doc_type, content_type: mimeType }, token);
-        const { upload_url, document_id } = presignRes.data;
-        await uploadToS3(upload_url, uri, mimeType);
-        await api.post('/documents/confirm', { document_id }, token);
+        const file_content = await FileSystem.readAsStringAsync(uri, {
+          encoding: FileSystem.EncodingType.Base64,
+        });
+        await api.post('/documents/upload', { doc_type, content_type: mimeType, file_content }, token);
       }
+      setUploadStatus('Done!');
       router.push('/onboarding/bank');
     } catch (e) {
       Alert.alert('Upload Failed', e.message);
     } finally {
       setSaving(false);
+      setUploadStatus('');
     }
   };
 
@@ -106,6 +111,17 @@ export default function DocumentsScreen() {
           </LinearGradient>
         </TouchableOpacity>
       </View>
+
+      <Modal visible={saving} transparent animationType="fade" statusBarTranslucent>
+        <View style={styles.loaderOverlay}>
+          <View style={[styles.loaderCard, { backgroundColor: Colors.surface }]}>
+            <ActivityIndicator size="large" color={Colors.primary} />
+            <Text style={[styles.loaderTitle, { color: Colors.foreground }]}>Uploading Documents</Text>
+            <Text style={[styles.loaderSub, { color: Colors.mutedForeground }]}>{uploadStatus}</Text>
+            <Text style={[styles.loaderHint, { color: Colors.mutedForeground }]}>Please don't close the app</Text>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -119,8 +135,13 @@ const styles = StyleSheet.create({
   notice:     { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.sm, borderRadius: Radius.lg, borderWidth: 1, padding: Spacing.md },
   noticeText: { flex: 1, fontSize: FontSize.sm, lineHeight: 20 },
   docList:    { gap: Spacing.sm },
-  footer:     { position: 'absolute', bottom: 0, left: 0, right: 0, padding: Spacing.base, paddingBottom: 36, borderTopWidth: StyleSheet.hairlineWidth },
-  nextBtn:    { borderRadius: Radius.lg, overflow: 'hidden', height: 56 },
-  nextGrad:   { flex: 1, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: Spacing.sm },
-  nextText:   { color: '#FFF', fontSize: FontSize.body, fontWeight: FontWeight.bold },
+  footer:       { position: 'absolute', bottom: 0, left: 0, right: 0, padding: Spacing.base, paddingBottom: 36, borderTopWidth: StyleSheet.hairlineWidth },
+  nextBtn:      { borderRadius: Radius.lg, overflow: 'hidden', height: 56 },
+  nextGrad:     { flex: 1, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: Spacing.sm },
+  nextText:     { color: '#FFF', fontSize: FontSize.body, fontWeight: FontWeight.bold },
+  loaderOverlay:{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center', padding: Spacing.xl },
+  loaderCard:   { width: '100%', borderRadius: Radius.xl, padding: Spacing.xl, alignItems: 'center', gap: Spacing.md },
+  loaderTitle:  { fontSize: FontSize.h3, fontWeight: FontWeight.bold, textAlign: 'center' },
+  loaderSub:    { fontSize: FontSize.body, textAlign: 'center' },
+  loaderHint:   { fontSize: FontSize.sm, textAlign: 'center' },
 });
