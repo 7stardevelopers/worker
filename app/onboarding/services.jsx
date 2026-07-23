@@ -8,6 +8,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { useTheme } from '@context/theme';
 import { useAuth } from '@context/auth';
+import { useProvider } from '@context/provider';
 import { FontSize, FontWeight, Spacing, Radius } from '@constants/theme';
 import { api } from '@utils/api';
 import { normalizeService } from '@utils/normalize';
@@ -15,11 +16,18 @@ import { normalizeService } from '@utils/normalize';
 export default function ServicesScreen() {
   const { Colors } = useTheme();
   const { token } = useAuth();
+  const { profile } = useProvider();
 
   const [services,  setServices]  = useState([]);
   const [selected,  setSelected]  = useState(new Set());
   const [loading,   setLoading]   = useState(true);
   const [saving,    setSaving]    = useState(false);
+
+  useEffect(() => {
+    if (Array.isArray(profile?.services)) {
+      setSelected(new Set(profile.services.map(s => s.service_id)));
+    }
+  }, [profile]);
 
   useEffect(() => {
     api.get('/services', token)

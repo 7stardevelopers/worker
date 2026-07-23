@@ -1,0 +1,105 @@
+Service Category,Service Type,Starting Price (INR),Time Duration,Details,Items total,visitsation fe,Tax & fee,Total
+Furniture Assembly,Basic Visit / Inspection,99-199,20-30 min,Issue check or assembly requirement visit,,,,
+wooden bed,Bed Assembly (Single/Double),449,,single bed ,449,,49,498
+Furniture Assembly,Bunk Bed Assembly,599,,Double bed installation,599,,49,648
+Furniture Assembly,Hydraulic bed assembly,1299,,Hydraulic bed assembly,1299,,59,1358
+Furniture Assembly,Day/diwan bed assembly,549,,Day/diwan bed assembly,549,,49,598
+Furniture Assembly,Loft/bunk bed assembly,929,2hr30min,Loft/bunk bed assembly,929,,59,988
+wardrobe,Single door wardrobe assembly,599,2hrs,Single door wardrobe assembly,599,,49,648
+Furniture Assembly,Double door wardrobe assembly,949,2hrs,Double door wardrobe assembly,949,,59,1008
+Furniture Assembly,Three door wardrobe assembly,949,2hrs30min,Three door wardrobe assembly,949,,59,1008
+Furniture Assembly,Four door wardrobe assembly,1049,3hrs,Four door wardrobe assembly,1049,,59,1108
+Furniture Assembly,Sliding door wardrobe assembly,799,3hr s30min,Sliding door wardrobe assembly,799,,59,858
+dining & kitchen ,Wooden dining table assembly,349,,2seater table,349,,39,388
+Furniture Assembly,Extendable dining table assembly,499,,Extendable dining table assembly,499,,49,548
+Furniture Assembly,Dining chair assembly,199,,1 chair,199,60,39,298
+Furniture Assembly,Dining table with chair assembly,699,,2 seater,699,,49,748
+Furniture Assembly,Utensil rack assembly,269,30min,Utensil rack assembly,269,,39,308
+Furniture Assembly,Bar trolley assembly,699,1hr 30min,Bar trolley assembly,699,,49,748
+Furniture Assembly,Bar cabinet assembly,449,60min,Bar cabinet assembly,449,,49,498
+Furniture Assembly,Bar stool assembly,399,60min,Bar stool assembly,399,,39,438
+Furniture Assembly,Bar table assembly,699,1hr 30min ,Bar table assembly,699,,49,498
+Furniture Assembly,Bar table set assembly,1099,2hr 30min,Bar table set assembly,1099,,59,1158
+tables and chairs,Study table assembly,449,2hr,Study table assembly,449,,49,498
+Furniture Assembly,Standing table assembly,999,2hrs30min,Standing table assembly,999,,59,1058
+Furniture Assembly,Coffee table assembly,269,,Coffee table assembly,269,,39,308
+Furniture Assembly,Side table assembly,199,,Side table assembly,199,60,39,298
+Furniture Assembly,Office chair assembly,249,,Office chair assembly,249,,39,288
+Furniture Assembly,Gaming chair assembly,799,60min,Gaming chair assembly,799,,59,858
+Furniture Assembly,Chair assembly,249,45min,Chair assembly,249,,39,288
+Furniture Assembly,Table/chair wheels fitting,199,30 mins,Table/chair wheels fitting,199,60,39,298
+Furniture Assembly,Stool assembly,179,,Stool assembly,179,60,39,278
+Furniture Assembly,Bench assembly,249,,Bench assembly,249,,39,288
+children,Changing table assembly,299,30 mins,Changing table assembly,299,79,49,427
+Furniture Assembly,Cot assembly,399,30 mins,Cot assembly,399,79,59,537
+Furniture Assembly,High chair assembly,279,30 mins,High chair assembly,279,,39,318
+Furniture Assembly,Children's bed assembly,449,,Children's bed assembly,449,,49,498
+Living & TV,Sofa assembly,449,,Sofa assembly,449,,49,498
+Furniture Assembly,Chaise lounger assembly,449,1hr 15min,Chaise lounger assembly,449,,49,498
+Furniture Assembly,L-shaped sofa assembly,599,,L-shaped sofa assembly,599,,49,648
+Furniture Assembly,Corner sofa assembly,599,,Corner sofa assembly,599,,49,648
+Furniture Assembly,Sofa cum bed assembly,549,,Sofa cum bed assembly,549,,49,549
+Furniture Assembly,Recliner assembly,399,,Recliner assembly,399,79,59,537
+Furniture Assembly,TV bench assembly,449,,TV bench assembly,449,,49,498
+Furniture Assembly,TV unit assembly,699,,TV unit assembly,699,,49,748
+OUTDOOR,Swing chair assembly & installation,449,,Swing chair assembly & installation,449,,49,498
+Furniture Assembly,Outdoor table & chairs assembly,219,,Outdoor table & chairs assembly,219,,39,258
+Furniture Assembly,Patio dining set assembly,749,2HRS,Patio dining set assembly,749,,59,808
+RELIGIOUS,Mandir assembly & installation,199,20min,Mandir assembly & installation,199,60,39,298
+Furniture Assembly,Pooja shelf assembly & installation,279,40min,Pooja shelf assembly & installation,279,,39,318
+cabinet/shelving unit ,Cabinet assembly ,499,,Cabinet assembly ,499,,49,548
+Furniture Assembly,Wall shelf installation,249,30 mins,Wall shelf installation,249,,39,288
+Furniture Assembly,Shelving unit assembly & installation,199,,Shelving unit assembly & installation,199,60,39,298
+Furniture Assembly,Wall cabinet assembly & installation,249,,Wall cabinet assembly & installation,249,,39,288
+Furniture Assembly,Mirror cabinet assembly & installation,499,,Mirror cabinet assembly & installation,499,,49,548
+Furniture Assembly,Wash basin cabinet assembly & installation,449,,Wash basin cabinet assembly & installation,449,,49,498
+Furniture Assembly,Dresser/dressing cabinet assembly & installation,499,,Dresser/dressing cabinet assembly & installation,499,,49,548
+Furniture Assembly,Magazine & newspaper rack assembly,299,45min,Magazine & newspaper rack assembly,299,79,49,427
+Furniture Assembly,Hanging screen & dividers assembly & installation,649,60min,Hanging screen & dividers assembly & installation,649,,49,698
+Furniture Assembly,Shoe rack assembly,199,,Shoe rack assembly,199,,,
+Furniture Assembly,Shoe cabinet assembly,299,,Shoe cabinet assembly,299,79,49,427
+Furniture Assembly,Book shelf/bookcase assembly & installation,519,,Book shelf/bookcase assembly & installation,519,,49,568
+Furniture Assembly,,,,,,,,
+Furniture Assembly,,,,,,,,
+Furniture Assembly,,,,,,,,
+Furniture Assembly,,,,,,,,
+Furniture Assembly,,,,,,,,
+Furniture Assembly,,,,,,,,
+Furniture Assembly,,,,,,,,
+Furniture Assembly,,,,,,,,
+,,,,,,,,
+,,,,,,,,
+,,,,,,,,
+,,,,,,,,
+,,,,,,,,
+,,,,,,,,
+,,,,,,,,
+,,,,,,,,
+,,,,,,,,
+,,,,,,,,
+,,,,,,,,
+,,,,,,,,
+,,,,,,,,
+,,,,,,,,
+,,,,,,,,
+,,,,,,,,
+,,,,,,,,
+,,,,,,,,
+,Sofa Assembly (Modular),500-1500,,,,,,
+,Wardrobe Assembly (Small),800-2000,,,,,,
+,Wardrobe Assembly (Large),1500-3500,,,,,,
+,Dining Table Assembly (4-6 seater),400-1200,,,,,,
+,Study Table Assembly,300-900,,,,,,
+,Office Chair Assembly,150-400,,,,,,
+,Office Desk Assembly,400-1200,,,,,,
+,TV Unit Assembly,500-1500,,,,,,
+,Shoe Rack Assembly,200-600,,,,,,
+,Cabinet Assembly,500-2000,,,,,,
+,Cabinet Assembly,300-1000,,,,,,
+,Cot / Diwan Assembly,800-2500,,,,,,
+,Reassembly / Dismantling,300-1200,,,,,,
+,Wall Mount Furniture Setup,500-2000,,,,,,
+,Custom Furniture Setup,1500-5000+,,,,,,
+,Kids Furniture Assembly,300-1200,,,,,,
+,Garden Furniture Setup,400-1500,,,,,,
+,Heavy Furniture Assembly,1000-4000,,,,,,

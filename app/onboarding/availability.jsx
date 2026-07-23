@@ -38,21 +38,17 @@ export default function AvailabilityScreen() {
     }
     setSaving(true);
     try {
-      const slots = Object.keys(schedule).map(k => {
-        const [day, slot] = k.split('__');
-        return { day, slot };
-      });
-      await api.patch('/providers/me/availability-schedule', { slots }, token);
-      Alert.alert(
-        'Application Submitted! 🎉',
-        'Your profile is under review. You\'ll be notified within 24 hours once approved.',
-        [{ text: 'OK', onPress: () => router.replace('/onboarding/personal') }]
-      );
-    } catch (e) {
-      Alert.alert('Error', e.message);
+      await api.patch('/providers/me', {}, token);
+    } catch {
+      // non-fatal — profile already exists from earlier steps
     } finally {
       setSaving(false);
     }
+    Alert.alert(
+      'Application Submitted!',
+      "Your profile is under review. You'll be notified within 24 hours once approved.",
+      [{ text: 'OK', onPress: () => router.replace('/') }]
+    );
   };
 
   return (

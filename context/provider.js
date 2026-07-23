@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { api } from '@utils/api';
 import { useAuth } from '@context/auth';
 
@@ -6,9 +6,10 @@ const ProviderContext = createContext({});
 
 export function ProviderProvider({ children }) {
   const { token } = useAuth();
-  const [profile,      setProfile]      = useState(null);
-  const [isAvailable,  setIsAvailable]  = useState(false);
-  const [loading,      setLoading]      = useState(false);
+  const [profile,       setProfile]       = useState(null);
+  const [isAvailable,   setIsAvailable]   = useState(false);
+  const [loading,       setLoading]       = useState(false);
+  const [profileLoaded, setProfileLoaded] = useState(false);
 
   const fetchProfile = useCallback(async () => {
     if (!token) return;
@@ -19,9 +20,25 @@ export function ProviderProvider({ children }) {
       setProfile(p);
       setIsAvailable(!!p.is_available);
     } catch (e) {
-      console.warn('[Provider] fetchProfile failed:', e.message);
+      if (e.status === 404) {
+        setProfile(null); // new user — no provider record yet
+      } else {
+        console.warn('[Provider] fetchProfile failed:', e.message);
+      }
     } finally {
       setLoading(false);
+      setProfileLoaded(true);
+    }
+  }, [token]);
+
+  // Auto-fetch whenever the token changes (login / logout)
+  useEffect(() => {
+    if (token) {
+      fetchProfile();
+    } else {
+      setProfile(null);
+      setIsAvailable(false);
+      setProfileLoaded(false);
     }
   }, [token]);
 
@@ -36,7 +53,7 @@ export function ProviderProvider({ children }) {
   }, [isAvailable, token]);
 
   return (
-    <ProviderContext.Provider value={{ profile, isAvailable, loading, fetchProfile, toggleAvailability, setProfile }}>
+    <ProviderContext.Provider value={{ profile, isAvailable, loading, profileLoaded, fetchProfile, toggleAvailability, setProfile }}>
       {children}
     </ProviderContext.Provider>
   );

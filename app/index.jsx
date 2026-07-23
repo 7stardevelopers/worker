@@ -7,7 +7,7 @@ import { DarkColors } from '@constants/theme';
 
 export default function Index() {
   const { token, loading: authLoading } = useAuth();
-  const { profile, fetchProfile, loading: provLoading } = useProvider();
+  const { profile, profileLoaded, fetchProfile } = useProvider();
 
   useEffect(() => {
     if (authLoading) return;
@@ -19,13 +19,20 @@ export default function Index() {
   }, [token, authLoading]);
 
   useEffect(() => {
-    if (!profile) return;
+    if (!profileLoaded) return;
+    if (!profile) {
+      // No provider record yet — brand new user
+      router.replace('/onboarding/personal');
+      return;
+    }
     if (profile.status === 'APPROVED') {
       router.replace('/(tabs)');
+    } else if (profile.status === 'PENDING') {
+      router.replace('/pending');
     } else {
       router.replace('/onboarding/personal');
     }
-  }, [profile]);
+  }, [profile, profileLoaded]);
 
   return (
     <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: DarkColors.background }}>

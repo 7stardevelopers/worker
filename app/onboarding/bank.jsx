@@ -35,7 +35,7 @@ export default function BankScreen() {
     }
     setSaving(true);
     try {
-      await api.patch('/providers/me/bank', {
+      await api.patch('/providers/me', {
         bank_account_number: accountNumber,
         bank_ifsc: ifsc.toUpperCase(),
         bank_account_name: accountName,

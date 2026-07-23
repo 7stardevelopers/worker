@@ -7,7 +7,7 @@ import { FontSize, FontWeight, Spacing, Radius, Shadow } from '@constants/theme'
 
 const OTP_LENGTH = 4;
 
-export default function OTPVerifySheet({ visible, onVerify, onClose, loading }) {
+export default function OTPVerifySheet({ visible, onVerify, onClose, loading, apiError }) {
   const { Colors } = useTheme();
   const [digits, setDigits] = useState(Array(OTP_LENGTH).fill(''));
   const [error, setError]   = useState('');
@@ -81,7 +81,9 @@ export default function OTPVerifySheet({ visible, onVerify, onClose, loading }) 
             ))}
           </View>
 
-          {error ? <Text style={[styles.error, { color: Colors.error }]}>{error}</Text> : null}
+          {(error || apiError) ? (
+            <Text style={[styles.error, { color: Colors.error }]}>{error || apiError}</Text>
+          ) : null}
 
           <View style={styles.actions}>
             <TouchableOpacity style={[styles.cancelBtn, { borderColor: Colors.border }]} onPress={onClose} activeOpacity={0.8}>

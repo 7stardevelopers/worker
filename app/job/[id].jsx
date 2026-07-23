@@ -33,13 +33,19 @@ export default function JobDetailScreen() {
   const [loading,      setLoading]      = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [showOtpSheet, setShowOtpSheet] = useState(false);
+  const [otpError,     setOtpError]     = useState('');
   const [proofUris,    setProofUris]    = useState([]);
 
   const fetchJob = useCallback(async () => {
     if (!token || !id) return;
     try {
       const res = await api.get(`/bookings/${id}`, token);
-      setJob(normalizeJob(res.data));
+      const j = normalizeJob(res.data);
+      setJob(j);
+      if (j.status === 'ACCEPTED' && j.scheduledAt) {
+        const minsUntil = (new Date(j.scheduledAt) - Date.now()) / 60000;
+        if (minsUntil <= 60) startLocationTracking().catch(() => {});
+      }
     } catch (e) {
       Alert.alert('Error', e.message);
     }
@@ -68,12 +74,13 @@ export default function JobDetailScreen() {
 
   const handleVerifyDoorOtp = async (code) => {
     setActionLoading(true);
+    setOtpError('');
     try {
-      await api.post(`/bookings/${id}/verify-door-otp`, { otp: code }, token);
+      await api.post(`/bookings/${id}/otp-verify`, { otp: code }, token);
       setShowOtpSheet(false);
-      await doStatusTransition('IN_PROGRESS');
+      await fetchJob();
     } catch (e) {
-      Alert.alert('Invalid OTP', e.message);
+      setOtpError(e.message || 'Incorrect OTP. Try again.');
     } finally {
       setActionLoading(false);
     }
@@ -100,7 +107,7 @@ export default function JobDetailScreen() {
         await uploadToS3(upload_url, uri, 'image/jpeg');
         uploadedUrls.push(object_url);
       }
-      await api.patch(`/bookings/${id}/complete`, { proof_photos: uploadedUrls }, token);
+      await api.post(`/bookings/${id}/complete`, { proof_photos: uploadedUrls }, token);
       await stopLocationTracking().catch(() => {});
       await fetchJob();
     } catch (e) {
@@ -114,7 +121,7 @@ export default function JobDetailScreen() {
 
   const handleAction = () => {
     if (!action) return;
-    if (action.needsDoorOtp) { setShowOtpSheet(true); return; }
+    if (action.needsDoorOtp) { setOtpError(''); setShowOtpSheet(true); return; }
     if (action.needsProof)   { handleComplete(); return; }
     doStatusTransition(action.next);
   };
@@ -232,6 +239,7 @@ export default function JobDetailScreen() {
         onVerify={handleVerifyDoorOtp}
         onClose={() => setShowOtpSheet(false)}
         loading={actionLoading}
+        apiError={otpError}
       />
     </SafeAreaView>
   );

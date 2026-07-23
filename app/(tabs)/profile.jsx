@@ -62,9 +62,9 @@ export default function ProfileScreen() {
   };
 
   const statusColor = STATUS_COLOR[profile?.status] ?? Colors.mutedForeground;
-  const avgRating   = profile?.avg_rating ?? 0;
+  const avgRating   = Number(profile?.avg_rating ?? 0);
   const totalJobs   = profile?.total_reviews ?? 0;
-  const acceptance  = profile?.acceptance_rate ?? 1;
+  const acceptance  = Number(profile?.acceptance_rate ?? 1);
 
   return (
     <SafeAreaView style={[styles.root, { backgroundColor: Colors.background }]} edges={['top']}>
