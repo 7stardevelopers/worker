@@ -27,7 +27,7 @@ function AppContent() {
   useEffect(() => {
     const sub = Notifications.addNotificationResponseReceivedListener(response => {
       const data = response.notification.request.content.data ?? {};
-      if (data.type === 'job_request' && data.booking_id) {
+      if (data.type === 'job_available' || (data.type === 'job_request' && data.booking_id)) {
         router.push('/(tabs)');
       } else if (data.type === 'account_approved') {
         router.replace('/');
@@ -45,6 +45,7 @@ function AppContent() {
         <Stack.Screen name="(auth)"               options={{ animation: 'none' }} />
         <Stack.Screen name="(tabs)"               options={{ animation: 'none' }} />
         <Stack.Screen name="job/[id]"             options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="job/chat"             options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="onboarding"           options={{ animation: 'fade' }} />
         <Stack.Screen name="pending"              options={{ animation: 'none' }} />
         <Stack.Screen name="notifications"        options={{ animation: 'slide_from_right' }} />

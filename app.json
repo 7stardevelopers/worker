@@ -17,11 +17,19 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.7starexperts.worker",
-      "buildNumber": "1"
+      "buildNumber": "1",
+      "config": {
+        "googleMapsApiKey": "AIzaSyCpuas67jtQmsj8QEToJ4osP2xwqzqgUJE"
+      }
     },
     "android": {
       "package": "com.starexperts.worker",
-      "versionCode": 1
+      "versionCode": 1,
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyCpuas67jtQmsj8QEToJ4osP2xwqzqgUJE"
+        }
+      }
     },
     "plugins": [
       "expo-router",

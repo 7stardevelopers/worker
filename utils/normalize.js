@@ -98,14 +98,21 @@ export function normalizeJob(b) {
   let proof = b.proof_photos;
   if (typeof proof === 'string') { try { proof = JSON.parse(proof); } catch { proof = []; } }
 
+  const totalAmount   = b.total_amount ?? 0;
+  // API sends 0 when fee isn't set yet — fall back to 20%
+  const platformFee   = (b.platform_fee != null && b.platform_fee > 0)
+    ? b.platform_fee
+    : Math.round(totalAmount * 0.2);
+  const providerEarning = totalAmount - platformFee;
+
   return {
     id:              b.booking_id,
     customerId:      b.customer_id,
     status:          b.status ?? 'PENDING',
     scheduledAt:     b.scheduled_at,
-    totalAmount:     b.total_amount ?? 0,
-    platformFee:     b.platform_fee ?? 0,
-    providerEarning: (b.total_amount ?? 0) - (b.platform_fee ?? 0),
+    totalAmount,
+    platformFee,
+    providerEarning,
     paymentStatus:   b.payment_status,
     isInstant:       !!b.is_instant,
     doorOtp:         b.door_otp ?? null,
@@ -124,6 +131,8 @@ export function normalizeJob(b) {
       lng:  addr?.lng  ?? null,
       city: addr?.city ?? '',
     },
+    customerName:  b.customer_name  ?? null,
+    customerPhone: b.customer_phone ?? null,
     createdAt: b.created_at,
   };
 }

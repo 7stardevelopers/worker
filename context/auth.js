@@ -5,6 +5,7 @@ import * as Notifications from 'expo-notifications';
 import Constants from 'expo-constants';
 import { router } from 'expo-router';
 import { api, setTokenRefreshCallback, setSessionExpiredCallback } from '@utils/api';
+import { stopLocationTracking } from '@utils/location';
 
 const ACCESS_TOKEN_KEY  = 'auth_access_token';
 const REFRESH_TOKEN_KEY = 'auth_refresh_token';
@@ -23,6 +24,7 @@ export function AuthProvider({ children }) {
     setSessionExpiredCallback(async () => {
       if (alertShownRef.current) return;
       alertShownRef.current = true;
+      await stopLocationTracking().catch(() => {});
       await AsyncStorage.multiRemove([ACCESS_TOKEN_KEY, REFRESH_TOKEN_KEY, USER_KEY]);
       Alert.alert(
         'Session Expired',
@@ -80,9 +82,17 @@ export function AuthProvider({ children }) {
   }
 
   const logout = async () => {
+    try {
+      const refreshToken = await AsyncStorage.getItem(REFRESH_TOKEN_KEY);
+      if (refreshToken) {
+        await api.post('/auth/logout', { refresh_token: refreshToken }, token);
+      }
+    } catch {}
+    await stopLocationTracking().catch(() => {});
     await AsyncStorage.multiRemove([ACCESS_TOKEN_KEY, REFRESH_TOKEN_KEY, USER_KEY]);
     setToken(null);
     setUser(null);
+    router.replace('/(auth)/login');
   };
 
   const updateUser = async (updates) => {
