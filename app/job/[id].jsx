@@ -340,6 +340,26 @@ export default function JobDetailScreen() {
       </ScrollView>
 
       {/* Action Button */}
+      {/* Rate Customer — shown when job is COMPLETED and provider hasn't reviewed yet */}
+      {job.status === 'COMPLETED' && !job.providerReview && (
+        <View style={[styles.actionBar, { backgroundColor: Colors.background, borderTopColor: Colors.border }]}>
+          <TouchableOpacity
+            style={[styles.actionBtn, { opacity: 1 }]}
+            onPress={() => router.push(`/job/review?id=${id}&customerName=${encodeURIComponent(job.customerName ?? 'Customer')}`)}
+            activeOpacity={0.85}
+          >
+            <LinearGradient
+              colors={['#F59E0B', '#EF4444']}
+              start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+              style={styles.actionGrad}
+            >
+              <Ionicons name="star-outline" size={20} color="#FFF" />
+              <Text style={styles.actionText}>Rate Customer</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+        </View>
+      )}
+
       {action && (
         <View style={[styles.actionBar, { backgroundColor: Colors.background, borderTopColor: Colors.border }]}>
           <TouchableOpacity

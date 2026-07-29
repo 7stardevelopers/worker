@@ -118,6 +118,7 @@ export function normalizeJob(b) {
     doorOtp:         b.door_otp ?? null,
     doorOtpVerified: !!b.door_otp_verified,
     proofPhotos:     Array.isArray(proof) ? proof : [],
+    providerReview:  b.provider_review ?? null,
     customerNotes:   b.customer_notes ?? '',
     service: {
       id:       b.service_id,
