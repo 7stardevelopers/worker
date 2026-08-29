@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import {
-  View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert, Image,
+  View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert, Image, Linking, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -18,7 +18,21 @@ import StatusPill from '@components/StatusPill';
 import OTPVerifySheet from '@components/OTPVerifySheet';
 import Skeleton from '@components/Skeleton';
 
+// Opens the native Maps app for turn-by-turn directions to the job's fixed
+// address. Background location tracking (started separately) keeps running
+// as an OS-level service regardless of which app is in the foreground.
+function openNavigation(lat, lng) {
+  if (lat == null || lng == null) return;
+  const appUrl = Platform.select({
+    ios: `maps://?daddr=${lat},${lng}&dirflg=d`,
+    android: `google.navigation:q=${lat},${lng}`,
+  });
+  const webFallback = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
+  Linking.openURL(appUrl).catch(() => Linking.openURL(webFallback));
+}
+
 const TRANSITION_ACTIONS = {
+  PENDING:     { label: 'Accept Job',       icon: 'checkmark-outline',        color: '#22C55E', isAccept: true },
   ACCEPTED:    { next: 'EN_ROUTE',    label: 'I\'m on my way',   icon: 'navigate-outline',   color: '#3B82F6' },
   EN_ROUTE:    { next: 'IN_PROGRESS', label: 'Verify Door OTP',  icon: 'keypad-outline',     color: '#8B5CF6', needsDoorOtp: true },
   IN_PROGRESS: { next: 'COMPLETED',   label: 'Mark as Complete', icon: 'checkmark-circle-outline', color: '#10B981', needsProof: true },
@@ -46,6 +60,11 @@ export default function JobDetailScreen() {
         const minsUntil = (new Date(j.scheduledAt) - Date.now()) / 60000;
         if (minsUntil <= 60) startLocationTracking().catch(() => {});
       }
+      // Job may have been cancelled/rejected by someone else (customer, admin)
+      // since the last fetch — make sure background GPS isn't left running.
+      if (['CANCELLED', 'REJECTED', 'COMPLETED'].includes(j.status)) {
+        stopLocationTracking().catch(() => {});
+      }
     } catch (e) {
       Alert.alert('Error', e.message);
     }
@@ -62,8 +81,11 @@ export default function JobDetailScreen() {
     setActionLoading(true);
     try {
       await api.patch(`/bookings/${id}/status`, { status: nextStatus }, token);
-      if (nextStatus === 'EN_ROUTE') await startLocationTracking().catch(() => {});
-      if (nextStatus === 'COMPLETED') await stopLocationTracking().catch(() => {});
+      if (nextStatus === 'EN_ROUTE') {
+        await startLocationTracking().catch(() => {});
+        openNavigation(job?.address?.lat, job?.address?.lng);
+      }
+      if (['COMPLETED', 'CANCELLED', 'REJECTED'].includes(nextStatus)) await stopLocationTracking().catch(() => {});
       await fetchJob();
     } catch (e) {
       Alert.alert('Error', e.message);
@@ -117,10 +139,24 @@ export default function JobDetailScreen() {
     }
   };
 
+  const handleAcceptJob = async () => {
+    setActionLoading(true);
+    try {
+      await api.patch(`/bookings/${id}/accept`, {}, token);
+      await fetchJob();
+    } catch (e) {
+      Alert.alert('Job unavailable', e.message ?? 'Another provider may have already accepted it.');
+      router.back();
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const action = TRANSITION_ACTIONS[job?.status];
 
   const handleAction = () => {
     if (!action) return;
+    if (action.isAccept)     { handleAcceptJob(); return; }
     if (action.needsDoorOtp) { setOtpError(''); setShowOtpSheet(true); return; }
     if (action.needsProof)   { handleComplete(); return; }
     doStatusTransition(action.next);
@@ -176,6 +212,39 @@ export default function JobDetailScreen() {
               📝 {job.customerNotes}
             </Text>
           ) : null}
+        </View>
+
+        {/* Customer */}
+        <View style={[styles.card, { backgroundColor: Colors.surface, borderColor: Colors.border }]}>
+          <Text style={[styles.cardTitle, { color: Colors.mutedForeground }]}>CUSTOMER</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: Spacing.xs }}>
+            <TouchableOpacity
+              style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, flex: 1 }}
+              onPress={() => router.push(`/customer/${job.customerId}`)}
+            >
+              {job.customerPhoto ? (
+                <Image source={{ uri: job.customerPhoto }} style={styles.customerAvatarImg} />
+              ) : (
+                <View style={[styles.customerAvatar, { backgroundColor: Colors.primary + '18' }]}>
+                  <Ionicons name="person" size={18} color={Colors.primary} />
+                </View>
+              )}
+              <Text style={{ color: Colors.foreground, fontWeight: '600', fontSize: FontSize.body }}>{job.customerName}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.callBtn, { backgroundColor: Colors.primary + '14' }]}
+              onPress={async () => {
+                try {
+                  await api.post('/calls/initiate', { booking_id: id, target: 'customer' }, token);
+                  Alert.alert('Calling…', 'Connecting you now — please answer the incoming call.');
+                } catch (e) {
+                  Alert.alert('Call failed', e.message ?? 'Please try again.');
+                }
+              }}
+            >
+              <Ionicons name="call-outline" size={18} color={Colors.primary} />
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Address */}
@@ -260,6 +329,9 @@ const styles = StyleSheet.create({
   cardTitle:  { fontSize: FontSize.xs, fontWeight: FontWeight.bold, letterSpacing: 1 },
   serviceName:{ fontSize: FontSize.h3, fontWeight: FontWeight.semibold },
   metaRow:    { flexDirection: 'row', alignItems: 'flex-start', gap: 6 },
+  customerAvatar:    { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+  customerAvatarImg: { width: 36, height: 36, borderRadius: 18 },
+  callBtn:    { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
   metaText:   { flex: 1, fontSize: FontSize.sm },
   notes:      { fontSize: FontSize.sm, lineHeight: 20, paddingTop: Spacing.sm, borderTopWidth: StyleSheet.hairlineWidth, marginTop: Spacing.sm },
   proofRow:   { flexDirection: 'row', gap: Spacing.sm, flexWrap: 'wrap' },

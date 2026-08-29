@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  View, Text, FlatList, RefreshControl, StyleSheet, TouchableOpacity,
+  View, Text, FlatList, RefreshControl, StyleSheet, TouchableOpacity, Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import * as Notifications from 'expo-notifications';
 import { useTheme } from '@context/theme';
 import { useAuth } from '@context/auth';
@@ -29,7 +30,7 @@ const FILTER_STATUSES = {
 export default function JobsScreen() {
   const { Colors } = useTheme();
   const { token } = useAuth();
-  const { isAvailable, toggleAvailability, loading: provLoading, fetchProfile } = useProvider();
+  const { isAvailable, toggleAvailability, loading: provLoading, fetchProfile, locationOk } = useProvider();
 
   const [jobs,        setJobs]        = useState([]);
   const [filter,      setFilter]      = useState('All');
@@ -40,9 +41,22 @@ export default function JobsScreen() {
   const fetchJobs = useCallback(async () => {
     if (!token) return;
     try {
-      const res = await api.get('/bookings', token);
-      const raw = Array.isArray(res.data) ? res.data : [];
-      setJobs(raw.map(normalizeJob));
+      // "My" jobs (already assigned to this provider) + "available" broadcast
+      // jobs (PENDING, unassigned, matched by service — not yet claimed by
+      // anyone). Both are needed: list_mine only returns bookings that
+      // already have this provider_id set.
+      const [mineRes, availableRes] = await Promise.all([
+        api.get('/bookings', token),
+        api.get('/bookings/available', token).catch(e => {
+          console.warn('[Jobs] available fetch failed:', e.message);
+          return { data: [] };
+        }),
+      ]);
+      const mine      = Array.isArray(mineRes.data) ? mineRes.data : [];
+      const available = Array.isArray(availableRes.data) ? availableRes.data : [];
+      const byId = new Map();
+      [...mine, ...available].forEach(b => byId.set(b.booking_id, b));
+      setJobs(Array.from(byId.values()).map(normalizeJob));
     } catch (e) {
       console.warn('[Jobs] fetch failed:', e.message);
     }
@@ -64,7 +78,7 @@ export default function JobsScreen() {
 
   useEffect(() => {
     const sub = Notifications.addNotificationReceivedListener(async notif => {
-      if (notif.request.content.data?.type === 'job_request') {
+      if (notif.request.content.data?.type === 'job_available') {
         const bookingId = notif.request.content.data?.booking_id;
         try {
           const res = await api.get(`/bookings/${bookingId}`, token);
@@ -78,19 +92,22 @@ export default function JobsScreen() {
   const handleAccept = async () => {
     if (!incomingJob) return;
     try {
-      await api.patch(`/bookings/${incomingJob.id}/status`, { status: 'ACCEPTED' }, token);
+      // A broadcast job has no assigned provider yet — /accept atomically
+      // claims it (first provider to hit this wins); /status ACCEPTED would
+      // 403 here since that path requires already being the assigned provider.
+      await api.patch(`/bookings/${incomingJob.id}/accept`, {}, token);
       setIncomingJob(null);
       fetchJobs();
     } catch (e) {
-      console.warn('[Jobs] accept failed:', e.message);
+      Alert.alert('Job unavailable', e.message ?? 'Another provider may have already accepted it.');
+      setIncomingJob(null);
+      fetchJobs();
     }
   };
 
   const handleReject = async () => {
-    if (!incomingJob) return;
-    try {
-      await api.patch(`/bookings/${incomingJob.id}/status`, { status: 'REJECTED' }, token);
-    } catch {}
+    // Broadcast jobs have no per-provider decline — just dismiss locally so
+    // the job stays visible to other nearby providers.
     setIncomingJob(null);
   };
 
@@ -115,6 +132,14 @@ export default function JobsScreen() {
               onToggle={toggleAvailability}
               loading={provLoading}
             />
+            {!locationOk && (
+              <View style={[styles.locationBanner, { backgroundColor: '#F59E0B18', borderColor: '#F59E0B40' }]}>
+                <Ionicons name="location-outline" size={16} color="#F59E0B" />
+                <Text style={[styles.locationBannerText, { color: Colors.foreground }]}>
+                  Turn on location access (including "Allow all the time") to go online and receive jobs.
+                </Text>
+              </View>
+            )}
             <View style={styles.filterRow}>
               {FILTERS.map(f => (
                 <TouchableOpacity
@@ -166,6 +191,12 @@ const styles = StyleSheet.create({
   title:      { fontSize: FontSize.h1, fontWeight: FontWeight.bold },
   list:       { paddingBottom: 100, gap: 0 },
   filterRow:  { flexDirection: 'row', paddingHorizontal: Spacing.base, paddingVertical: Spacing.md, gap: Spacing.sm, flexWrap: 'wrap' },
+  locationBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
+    marginHorizontal: Spacing.base, marginTop: Spacing.sm,
+    padding: Spacing.md, borderRadius: Radius.md, borderWidth: 1,
+  },
+  locationBannerText: { flex: 1, fontSize: FontSize.sm },
   filterChip: { borderRadius: Radius.full, borderWidth: 1, paddingHorizontal: Spacing.md, paddingVertical: 6 },
   filterText: { fontSize: FontSize.sm, fontWeight: FontWeight.medium },
 });

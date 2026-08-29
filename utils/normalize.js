@@ -101,6 +101,8 @@ export function normalizeJob(b) {
   return {
     id:              b.booking_id,
     customerId:      b.customer_id,
+    customerName:    b.customer_name ?? 'Customer',
+    customerPhoto:   b.customer_photo ?? null,
     status:          b.status ?? 'PENDING',
     scheduledAt:     b.scheduled_at,
     totalAmount:     b.total_amount ?? 0,
