@@ -1,6 +1,6 @@
 import React, { useCallback } from 'react';
 import {
-  View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert, RefreshControl,
+  View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert, RefreshControl, Switch,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -10,6 +10,7 @@ import { useTheme } from '@context/theme';
 import { useAuth } from '@context/auth';
 import { useProvider } from '@context/provider';
 import { FontSize, FontWeight, Spacing, Radius, Shadow } from '@constants/theme';
+import { APP_NAME, APP_VERSION } from '@constants/brand';
 
 const STATUS_COLOR = {
   PENDING:   '#F59E0B',
@@ -18,13 +19,15 @@ const STATUS_COLOR = {
   REJECTED:  '#EF4444',
 };
 
-function Row({ icon, label, sub, onPress, danger }) {
+function Row({ icon, label, sub, onPress, danger, right }) {
   const { Colors } = useTheme();
   return (
     <TouchableOpacity
       style={[styles.row, { borderBottomColor: Colors.borderLight }]}
       onPress={onPress}
       activeOpacity={0.7}
+      accessibilityRole="button"
+      accessibilityLabel={sub ? `${label}, ${sub}` : label}
     >
       <View style={[styles.rowIcon, { backgroundColor: (danger ? Colors.error : Colors.primary) + '15' }]}>
         <Ionicons name={icon} size={20} color={danger ? Colors.error : Colors.primary} />
@@ -33,15 +36,15 @@ function Row({ icon, label, sub, onPress, danger }) {
         <Text style={[styles.rowLabel, { color: danger ? Colors.error : Colors.foreground }]}>{label}</Text>
         {sub ? <Text style={[styles.rowSub, { color: Colors.mutedForeground }]}>{sub}</Text> : null}
       </View>
-      <Ionicons name="chevron-forward" size={18} color={Colors.subtleForeground} />
+      {right ?? <Ionicons name="chevron-forward" size={18} color={Colors.subtleForeground} />}
     </TouchableOpacity>
   );
 }
 
 export default function ProfileScreen() {
-  const { Colors } = useTheme();
+  const { Colors, isDark, toggleTheme } = useTheme();
   const { user, logout } = useAuth();
-  const { profile, fetchProfile, loading } = useProvider();
+  const { profile, fetchProfile, loading, locationOk } = useProvider();
   const [refreshing, setRefreshing] = React.useState(false);
 
   useFocusEffect(
@@ -63,7 +66,7 @@ export default function ProfileScreen() {
 
   const statusColor = STATUS_COLOR[profile?.status] ?? Colors.mutedForeground;
   const avgRating   = Number(profile?.avg_rating ?? 0);
-  const totalJobs   = profile?.total_reviews ?? 0;
+  const totalReviews = profile?.total_reviews ?? 0;
   const acceptance  = Number(profile?.acceptance_rate ?? 1);
 
   return (
@@ -102,7 +105,7 @@ export default function ProfileScreen() {
         {/* Stats */}
         <View style={styles.statsRow}>
           {[
-            { label: 'Total Jobs',    value: totalJobs },
+            { label: 'Reviews',       value: totalReviews },
             { label: 'Avg Rating',    value: avgRating.toFixed(1) + '★' },
             { label: 'Acceptance',    value: Math.round(acceptance * 100) + '%' },
           ].map(s => (
@@ -115,18 +118,26 @@ export default function ProfileScreen() {
 
         {/* Settings */}
         <View style={[styles.section, { backgroundColor: Colors.surface, borderColor: Colors.border }]}>
-          <Row icon="person-outline"     label="Edit Profile"   onPress={() => router.push('/onboarding/personal')} />
-          <Row icon="document-outline"   label="My Documents"   sub="Aadhaar, PAN, Certificate" onPress={() => router.push('/onboarding/documents')} />
-          <Row icon="card-outline"       label="Bank Account"   sub={profile?.bank_account_number ? `****${(profile.bank_account_number).slice(-4)}` : 'Not set'} onPress={() => router.push('/onboarding/bank')} />
+          <Row icon="person-outline"     label="Edit Profile"   onPress={() => router.push('/onboarding/personal?mode=edit')} />
+          <Row icon="construct-outline"  label="My Services"    sub={profile?.services?.length ? `${profile.services.length} selected` : 'Not set'} onPress={() => router.push('/onboarding/services?mode=edit')} />
+          <Row icon="document-outline"   label="My Documents"   sub="Aadhaar & PAN" onPress={() => router.push('/onboarding/documents?mode=edit')} />
+          <Row icon="card-outline"       label="Bank Account"   sub={profile?.bank_account_number ? `****${(profile.bank_account_number).slice(-4)}` : 'Not set'} onPress={() => router.push('/onboarding/bank?mode=edit')} />
           <Row icon="headset-outline"    label="Support"        onPress={() => router.push('/support/index')} />
           <Row icon="notifications-outline" label="Notifications" onPress={() => router.push('/notifications')} />
+          <Row icon="location-outline"   label="Location access" sub={locationOk ? 'Allowed all the time' : 'Needed to go online'} onPress={() => router.push('/permissions')} />
+          <Row
+            icon={isDark ? 'moon-outline' : 'sunny-outline'}
+            label="Dark mode"
+            onPress={toggleTheme}
+            right={<Switch value={isDark} onValueChange={toggleTheme} trackColor={{ true: Colors.primary + '80', false: Colors.border }} thumbColor={isDark ? Colors.primary : undefined} />}
+          />
         </View>
 
         <View style={[styles.section, { backgroundColor: Colors.surface, borderColor: Colors.border, marginTop: Spacing.sm }]}>
           <Row icon="log-out-outline" label="Log Out" onPress={handleLogout} danger />
         </View>
 
-        <Text style={[styles.version, { color: Colors.subtleForeground }]}>7StarWorker v1.0.0</Text>
+        <Text style={[styles.version, { color: Colors.subtleForeground }]}>{APP_NAME} v{APP_VERSION}</Text>
       </ScrollView>
     </SafeAreaView>
   );

@@ -1,16 +1,12 @@
 {
   "expo": {
-    "name": "7StarWorker",
+    "name": "MULTIOKS Partner",
     "slug": "7starworker",
     "version": "1.0.0",
     "orientation": "portrait",
+    "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
     "scheme": "starworker",
-    "splash": {
-      "image": "./assets/splash.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#08090E"
-    },
     "assetBundlePatterns": [
       "**/*"
     ],
@@ -21,7 +17,13 @@
     },
     "android": {
       "package": "com.starexperts.worker",
-      "versionCode": 1
+      "versionCode": 1,
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundImage": "./assets/adaptive-icon-background.png",
+        "monochromeImage": "./assets/adaptive-icon-monochrome.png",
+        "backgroundColor": "#0F0E2A"
+      }
     },
     "plugins": [
       "expo-router",
@@ -40,24 +42,34 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "Allow 7StarWorker to access your camera for proof of job completion."
+          "cameraPermission": "Allow MULTIOKS Partner to access your camera for proof of job completion."
         }
       ],
       [
         "expo-image-picker",
         {
-          "photosPermission": "Allow 7StarWorker to access photos for document uploads."
+          "photosPermission": "Allow MULTIOKS Partner to access photos for document uploads."
         }
       ],
       [
         "expo-location",
         {
-          "locationAlwaysAndWhenInUsePermission": "7StarWorker needs your location to show customers where you are during a job.",
-          "locationAlwaysPermission": "7StarWorker uses background location to track your route during active jobs.",
+          "locationAlwaysAndWhenInUsePermission": "MULTIOKS Partner needs your location to show customers where you are during a job.",
+          "locationAlwaysPermission": "MULTIOKS Partner uses background location to track your route during active jobs.",
           "isIosBackgroundLocationEnabled": true,
           "isAndroidBackgroundLocationEnabled": true
         }
-      ]
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 160,
+          "resizeMode": "contain",
+          "backgroundColor": "#08090E"
+        }
+      ],
+      "expo-status-bar"
     ],
     "experiments": {
       "typedRoutes": false
@@ -68,6 +80,9 @@
         "projectId": "d54ea291-ff92-42b1-9bbf-e7ce898842b6"
       }
     },
-    "owner": "stars-seven"
+    "owner": "stars-seven",
+    "web": {
+      "favicon": "./assets/favicon.png"
+    }
   }
 }

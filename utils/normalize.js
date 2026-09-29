@@ -113,6 +113,13 @@ export function normalizeJob(b) {
     doorOtp:         b.door_otp ?? null,
     doorOtpVerified: !!b.door_otp_verified,
     proofPhotos:     Array.isArray(proof) ? proof : [],
+    // Only the detail endpoint returns items; list rows leave this empty.
+    items: Array.isArray(b.items) ? b.items.map(i => ({
+      id:       String(i.item_id ?? i.sub_service_id),
+      name:     i.name_snapshot ?? 'Item',
+      price:    Number(i.price_snapshot ?? 0),
+      quantity: i.quantity ?? 1,
+    })) : [],
     customerNotes:   b.customer_notes ?? '',
     service: {
       id:       b.service_id,

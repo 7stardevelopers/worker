@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, AppState } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -8,33 +8,50 @@ import { useTheme } from '@context/theme';
 import { useAuth } from '@context/auth';
 import { useProvider } from '@context/provider';
 import { FontSize, FontWeight, Spacing, Radius } from '@constants/theme';
+import { routeForProvider } from '@utils/onboarding';
 
 export default function PendingScreen() {
   const { Colors } = useTheme();
-  const { logout } = useAuth();
-  const { profile, fetchProfile, loading } = useProvider();
+  const { user, token, logout } = useAuth();
+  const { fetchProfile, loading } = useProvider();
   const [checking, setChecking] = useState(false);
 
-  useEffect(() => {
-    if (profile?.status === 'APPROVED') {
-      router.replace('/(tabs)');
-    }
-  }, [profile]);
+  // Refetch and move on if the worker no longer belongs here (approved,
+  // suspended, or a document was rejected and needs re-uploading).
+  // Resolves true when still pending, false when routed away, null on failure.
+  const refreshStatus = useCallback(async () => {
+    const fresh = await fetchProfile();
+    if (!fresh) return null;
+    const target = await routeForProvider(fresh, user, token);
+    if (target === '/pending') return true;
+    router.replace(target);
+    return false;
+  }, [fetchProfile, user, token]);
 
   const checkStatus = useCallback(async () => {
     setChecking(true);
-    await fetchProfile();
-    setChecking(false);
-    // If still PENDING after refetch, tell the user
-    if (profile?.status !== 'APPROVED') {
-      Alert.alert('Still Under Review', 'Your application is still being reviewed. Please check back later or wait for the approval notification.');
+    try {
+      const stillPending = await refreshStatus();
+      if (stillPending === null) throw new Error();
+      if (stillPending) {
+        Alert.alert('Still Under Review', 'Your application is still being reviewed. Please check back later or wait for the approval notification.');
+      }
+    } catch {
+      Alert.alert('Connection problem', "Couldn't check your status. Please try again.");
+    } finally {
+      setChecking(false);
     }
-  }, [fetchProfile, profile]);
+  }, [refreshStatus]);
+
+  // Approval often lands while the app is in the background (push → reopen).
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', s => {
+      if (s === 'active') refreshStatus().catch(() => {});
+    });
+    return () => sub.remove();
+  }, [refreshStatus]);
 
   const busy = checking || loading;
-
-  // Detect incomplete onboarding — if bank account not set, they haven't finished all 5 steps
-  const isIncomplete = !profile?.bank_account_number;
 
   return (
     <SafeAreaView style={[styles.root, { backgroundColor: Colors.background }]} edges={['top', 'bottom']}>
@@ -46,10 +63,7 @@ export default function PendingScreen() {
 
         <Text style={[styles.title, { color: Colors.foreground }]}>Application Under Review</Text>
         <Text style={[styles.body, { color: Colors.mutedForeground }]}>
-          {isIncomplete
-            ? "It looks like your onboarding isn't complete yet. Finish all 5 steps to submit your application."
-            : "Our team is verifying your documents and details. This usually takes up to 24 hours. You'll receive a push notification once approved."
-          }
+          Our team is verifying your documents and details. This usually takes up to 24 hours. You'll receive a push notification once approved.
         </Text>
 
         <View style={[styles.infoCard, { backgroundColor: Colors.surface, borderColor: Colors.border }]}>
@@ -65,23 +79,6 @@ export default function PendingScreen() {
           ))}
         </View>
 
-        {isIncomplete && (
-          <TouchableOpacity
-            style={styles.continueBtn}
-            onPress={() => router.replace('/onboarding/personal')}
-            activeOpacity={0.85}
-          >
-            <LinearGradient
-              colors={['#6366F1', '#8B5CF6']}
-              start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-              style={styles.btnGrad}
-            >
-              <Ionicons name="arrow-forward-circle-outline" size={18} color="#FFF" />
-              <Text style={styles.btnText}>Continue Onboarding</Text>
-            </LinearGradient>
-          </TouchableOpacity>
-        )}
-
         <TouchableOpacity
           style={[styles.refreshBtn, { opacity: busy ? 0.6 : 1 }]}
           onPress={checkStatus}
@@ -89,7 +86,7 @@ export default function PendingScreen() {
           activeOpacity={0.85}
         >
           <LinearGradient
-            colors={isIncomplete ? ['#374151', '#4B5563'] : ['#6366F1', '#8B5CF6']}
+            colors={Colors.gradientPrimary}
             start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
             style={styles.btnGrad}
           >
@@ -127,7 +124,6 @@ const styles = StyleSheet.create({
   infoCard:    { width: '100%', borderRadius: Radius.xl, borderWidth: StyleSheet.hairlineWidth, padding: Spacing.base, gap: Spacing.md },
   infoRow:     { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
   infoText:    { fontSize: FontSize.sm, flex: 1 },
-  continueBtn: { width: '100%', borderRadius: Radius.lg, overflow: 'hidden', height: 56 },
   refreshBtn:  { width: '100%', borderRadius: Radius.lg, overflow: 'hidden', height: 56 },
   logoutText:  { fontSize: FontSize.sm, textDecorationLine: 'underline', paddingVertical: Spacing.sm },
   btnGrad:     { flex: 1, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: Spacing.sm },

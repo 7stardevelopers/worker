@@ -4,10 +4,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '@context/theme';
 import { FontSize, FontWeight, Spacing, Radius, Shadow } from '@constants/theme';
+import { formatINR } from '@utils/money';
 
 const COUNTDOWN = 30;
 
-export default function JobRequestModal({ visible, job, onAccept, onReject }) {
+export default function JobRequestModal({ visible, job, onAccept, onReject, onExpire, accepting = false }) {
+  const expireRef = useRef(onExpire ?? onReject);
+  expireRef.current = onExpire ?? onReject;
   const { Colors } = useTheme();
   const [timer, setTimer] = useState(COUNTDOWN);
   const slideY = useRef(new Animated.Value(300)).current;
@@ -27,7 +30,7 @@ export default function JobRequestModal({ visible, job, onAccept, onReject }) {
     setTimer(COUNTDOWN);
     const iv = setInterval(() => {
       setTimer(t => {
-        if (t <= 1) { clearInterval(iv); onReject?.(); return 0; }
+        if (t <= 1) { clearInterval(iv); expireRef.current?.(); return 0; }
         return t - 1;
       });
     }, 1000);
@@ -80,21 +83,21 @@ export default function JobRequestModal({ visible, job, onAccept, onReject }) {
             <View style={[styles.earningBadge, { backgroundColor: Colors.success + '15', borderColor: Colors.success + '40' }]}>
               <Text style={[styles.earningLabel, { color: Colors.mutedForeground }]}>You earn</Text>
               <Text style={[styles.earningAmount, { color: Colors.success }]}>
-                ₹{(earning / 100).toFixed(0)}
+                {formatINR(earning)}
               </Text>
             </View>
           </View>
 
           <View style={styles.actions}>
-            <TouchableOpacity style={[styles.rejectBtn, { borderColor: Colors.error }]} onPress={onReject} activeOpacity={0.85}>
+            <TouchableOpacity style={[styles.rejectBtn, { borderColor: Colors.error, opacity: accepting ? 0.5 : 1 }]} onPress={onReject} disabled={accepting} activeOpacity={0.85}>
               <Ionicons name="close" size={20} color={Colors.error} />
               <Text style={[styles.rejectText, { color: Colors.error }]}>Decline</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={[styles.acceptBtn, { flex: 1 }]} onPress={onAccept} activeOpacity={0.85}>
+            <TouchableOpacity style={[styles.acceptBtn, { flex: 1, opacity: accepting ? 0.7 : 1 }]} onPress={onAccept} disabled={accepting} activeOpacity={0.85}>
               <LinearGradient colors={['#10B981', '#059669']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.acceptGrad}>
                 <Ionicons name="checkmark" size={20} color="#FFF" />
-                <Text style={styles.acceptText}>Accept Job</Text>
+                <Text style={styles.acceptText}>{accepting ? 'Accepting…' : 'Accept Job'}</Text>
               </LinearGradient>
             </TouchableOpacity>
           </View>

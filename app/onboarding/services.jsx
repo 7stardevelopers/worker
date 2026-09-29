@@ -5,18 +5,21 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useTheme } from '@context/theme';
 import { useAuth } from '@context/auth';
 import { useProvider } from '@context/provider';
 import { FontSize, FontWeight, Spacing, Radius } from '@constants/theme';
+import { alertError } from '@utils/errors';
 import { api } from '@utils/api';
+import { goBackFrom } from '@utils/onboarding';
 import { normalizeService } from '@utils/normalize';
 
 export default function ServicesScreen() {
   const { Colors } = useTheme();
   const { token } = useAuth();
-  const { profile } = useProvider();
+  const { profile, fetchProfile } = useProvider();
+  const editing = useLocalSearchParams().mode === 'edit';
 
   const [services,  setServices]  = useState([]);
   const [selected,  setSelected]  = useState(new Set());
@@ -35,7 +38,7 @@ export default function ServicesScreen() {
         const raw = Array.isArray(res.data) ? res.data : [];
         setServices(raw.map(normalizeService));
       })
-      .catch(e => Alert.alert('Error', e.message))
+      .catch(e => alertError('Error', e))
       .finally(() => setLoading(false));
   }, [token]);
 
@@ -52,9 +55,10 @@ export default function ServicesScreen() {
     setSaving(true);
     try {
       await api.patch('/providers/me/services', { service_ids: Array.from(selected) }, token);
-      router.push('/onboarding/documents');
+      if (editing) { await fetchProfile(); router.back(); }
+      else router.push('/onboarding/documents');
     } catch (e) {
-      Alert.alert('Error', e.message);
+      alertError('Error', e);
     } finally {
       setSaving(false);
     }
@@ -63,7 +67,7 @@ export default function ServicesScreen() {
   return (
     <SafeAreaView style={[styles.root, { backgroundColor: Colors.background }]} edges={['top']}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
+        <TouchableOpacity onPress={() => goBackFrom('services')} hitSlop={12} accessibilityRole="button" accessibilityLabel="Back">
           <Ionicons name="arrow-back" size={24} color={Colors.foreground} />
         </TouchableOpacity>
         <View style={styles.headerText}>
@@ -113,7 +117,7 @@ export default function ServicesScreen() {
           activeOpacity={0.85}
         >
           <LinearGradient colors={Colors.gradientPrimary} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.nextGrad}>
-            <Text style={styles.nextText}>{saving ? 'Saving...' : 'Next: Documents'}</Text>
+            <Text style={styles.nextText}>{saving ? 'Saving...' : editing ? 'Save' : 'Next: Documents'}</Text>
             <Ionicons name="arrow-forward" size={18} color="#FFF" />
           </LinearGradient>
         </TouchableOpacity>

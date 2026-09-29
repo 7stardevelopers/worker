@@ -5,6 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { useTheme } from '@context/theme';
 import { FontSize, FontWeight, Spacing, Radius, Shadow } from '@constants/theme';
+import { formatINR } from '@utils/money';
 import StatusPill from '@components/StatusPill';
 
 const ACTIVE_STATUSES = ['ACCEPTED', 'EN_ROUTE', 'IN_PROGRESS'];
@@ -72,7 +73,7 @@ export default function JobCard({ job }) {
         <View>
           <Text style={[styles.earningLabel, { color: Colors.mutedForeground }]}>Your earning</Text>
           <Text style={[styles.earningAmount, { color: Colors.success }]}>
-            ₹{(earning / 100).toFixed(0)}
+            {formatINR(earning)}
           </Text>
         </View>
         <View style={[styles.arrow, { backgroundColor: Colors.primary + '15', borderColor: Colors.primary + '30' }]}>

@@ -8,6 +8,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useTheme } from '@context/theme';
 import { FontSize, FontWeight, Spacing, Radius } from '@constants/theme';
+import { APP_NAME } from '@constants/brand';
+import { friendlyError } from '@utils/errors';
 import { api } from '@utils/api';
 
 export default function LoginScreen() {
@@ -36,7 +38,7 @@ export default function LoginScreen() {
       await api.post('/auth/send-otp', { phone });
       router.push({ pathname: '/(auth)/otp', params: { phone } });
     } catch (e) {
-      setError(e.message);
+      setError(friendlyError(e) ?? '');
       triggerShake();
     } finally {
       setLoading(false);
@@ -61,9 +63,9 @@ export default function LoginScreen() {
               start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
               style={styles.logoBox}
             >
-              <Text style={styles.logoText}>7★</Text>
+              <Text style={styles.logoText}>M</Text>
             </LinearGradient>
-            <Text style={[styles.appName, { color: Colors.foreground }]}>7StarWorker</Text>
+            <Text style={[styles.appName, { color: Colors.foreground }]}>{APP_NAME}</Text>
             <Text style={[styles.tagline, { color: Colors.mutedForeground }]}>
               Expert Partner App
             </Text>

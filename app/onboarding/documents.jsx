@@ -1,61 +1,76 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
-import * as FileSystem from 'expo-file-system/legacy';
 import { useTheme } from '@context/theme';
 import { useAuth } from '@context/auth';
 import { FontSize, FontWeight, Spacing, Radius } from '@constants/theme';
 import { api } from '@utils/api';
+import { alertError } from '@utils/errors';
+import { compressImage } from '@utils/image';
+import { goBackFrom, fetchMyDocuments } from '@utils/onboarding';
 import DocumentUploadCard from '@components/DocumentUploadCard';
 
 const DOCS = [
-  { key: 'aadhaar_front', title: 'Aadhaar Front', subtitle: 'Front side of your Aadhaar card' },
-  { key: 'aadhaar_back',  title: 'Aadhaar Back',  subtitle: 'Back side of your Aadhaar card'  },
-  { key: 'pan',           title: 'PAN Card',       subtitle: 'Your PAN card photo'              },
+  { type: 'AADHAAR_FRONT', title: 'Aadhaar Front', subtitle: 'Front side of your Aadhaar card' },
+  { type: 'AADHAAR_BACK',  title: 'Aadhaar Back',  subtitle: 'Back side of your Aadhaar card'  },
+  { type: 'PAN',           title: 'PAN Card',      subtitle: 'Your PAN card photo'              },
 ];
+
+// Backend document status → DocumentUploadCard status
+const CARD_STATUS = { PENDING: 'pending', VERIFIED: 'verified', REJECTED: 'rejected' };
 
 export default function DocumentsScreen() {
   const { Colors } = useTheme();
   const { token } = useAuth();
-  const [files,        setFiles]        = useState({});
+  const editing = useLocalSearchParams().mode === 'edit';
+  const [files,        setFiles]        = useState({}); // newly picked, not yet uploaded
+  const [onFile,       setOnFile]       = useState({}); // already uploaded, keyed by doc_type
   const [saving,       setSaving]       = useState(false);
   const [uploadStatus, setUploadStatus] = useState('');
 
-  const pickDocument = async (key) => {
-    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.8 });
+  // A worker resuming onboarding may already have uploaded some documents.
+  useEffect(() => {
+    fetchMyDocuments(token).then(setOnFile).catch(() => {});
+  }, [token]);
+
+  const pickDocument = async (type) => {
+    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 1 });
     if (result.canceled) return;
-    const asset = result.assets[0];
-    setFiles(prev => ({ ...prev, [key]: { uri: asset.uri, mimeType: asset.mimeType ?? 'image/jpeg' } }));
+    const { uri, width, height } = result.assets[0];
+    setFiles(prev => ({ ...prev, [type]: { uri, width, height } }));
   };
 
+  const isSatisfied = (type) => !!files[type] || (onFile[type] && onFile[type].status !== 'REJECTED');
+
   const handleNext = async () => {
-    const missing = DOCS.filter(d => !files[d.key]);
+    const missing = DOCS.filter(d => !isSatisfied(d.type));
     if (missing.length > 0) {
       Alert.alert('Required', `Please upload: ${missing.map(d => d.title).join(', ')}`);
       return;
     }
+    const toUpload = DOCS.filter(d => files[d.type]);
     setSaving(true);
     try {
-      for (let i = 0; i < DOCS.length; i++) {
-        const doc = DOCS[i];
-        setUploadStatus(`Uploading ${doc.title} (${i + 1} of ${DOCS.length})...`);
-        const { uri, mimeType } = files[doc.key];
-        const doc_type = doc.key.toUpperCase();
-        const file_content = await FileSystem.readAsStringAsync(uri, {
-          encoding: FileSystem.EncodingType.Base64,
-        });
-        await api.post('/documents/upload', { doc_type, content_type: mimeType, file_content }, token);
+      for (let i = 0; i < toUpload.length; i++) {
+        const doc = toUpload[i];
+        setUploadStatus(`Uploading ${doc.title} (${i + 1} of ${toUpload.length})...`);
+        // Full-size phone photos exceed the API's ~6 MB request cap once base64-encoded.
+        const { base64 } = await compressImage(files[doc.type].uri, { ...files[doc.type], base64: true });
+        await api.post('/documents/upload', { doc_type: doc.type, content_type: 'image/jpeg', file_content: base64 }, token);
+        // Uploaded — don't send it again if a later document fails and the worker retries.
+        setOnFile(prev => ({ ...prev, [doc.type]: { doc_type: doc.type, status: 'PENDING' } }));
+        setFiles(prev => { const next = { ...prev }; delete next[doc.type]; return next; });
       }
-      setUploadStatus('Done!');
-      router.push('/onboarding/bank');
+      if (editing) router.back();
+      else router.push('/onboarding/bank');
     } catch (e) {
-      Alert.alert('Upload Failed', e.message);
+      alertError('Upload Failed', e, "Couldn't upload your documents. Please try again.");
     } finally {
       setSaving(false);
       setUploadStatus('');
@@ -67,11 +82,11 @@ export default function DocumentsScreen() {
       <ScrollView contentContainerStyle={styles.scroll}>
 
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()}>
+          <TouchableOpacity onPress={() => goBackFrom('documents')} hitSlop={12} accessibilityRole="button" accessibilityLabel="Back">
             <Ionicons name="arrow-back" size={24} color={Colors.foreground} />
           </TouchableOpacity>
           <View>
-            <Text style={[styles.title, { color: Colors.foreground }]}>Upload Documents</Text>
+            <Text style={[styles.title, { color: Colors.foreground }]}>{editing ? 'My Documents' : 'Upload Documents'}</Text>
             <Text style={[styles.sub, { color: Colors.mutedForeground }]}>Required for verification</Text>
           </View>
         </View>
@@ -86,12 +101,14 @@ export default function DocumentsScreen() {
         <View style={styles.docList}>
           {DOCS.map(doc => (
             <DocumentUploadCard
-              key={doc.key}
+              key={doc.type}
               title={doc.title}
-              subtitle={doc.subtitle}
-              uri={files[doc.key]?.uri ?? null}
-              status={files[doc.key] ? 'pending' : 'empty'}
-              onPress={() => pickDocument(doc.key)}
+              subtitle={onFile[doc.type]?.status === 'REJECTED' && !files[doc.type]
+                ? (onFile[doc.type].rejection_reason || 'Rejected — please upload a clearer photo')
+                : doc.subtitle}
+              uri={files[doc.type]?.uri ?? null}
+              status={files[doc.type] ? 'pending' : (CARD_STATUS[onFile[doc.type]?.status] ?? 'empty')}
+              onPress={() => pickDocument(doc.type)}
             />
           ))}
         </View>
@@ -106,7 +123,7 @@ export default function DocumentsScreen() {
           activeOpacity={0.85}
         >
           <LinearGradient colors={Colors.gradientPrimary} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.nextGrad}>
-            <Text style={styles.nextText}>{saving ? 'Uploading...' : 'Next: Bank Details'}</Text>
+            <Text style={styles.nextText}>{saving ? 'Uploading...' : editing ? (Object.keys(files).length ? 'Upload' : 'Done') : 'Next: Bank Details'}</Text>
             <Ionicons name="arrow-forward" size={18} color="#FFF" />
           </LinearGradient>
         </TouchableOpacity>

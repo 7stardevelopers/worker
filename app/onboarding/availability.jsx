@@ -10,6 +10,7 @@ import { useTheme } from '@context/theme';
 import { useAuth } from '@context/auth';
 import { FontSize, FontWeight, Spacing, Radius } from '@constants/theme';
 import { api } from '@utils/api';
+import { goBackFrom } from '@utils/onboarding';
 
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const SLOTS = ['06:00–09:00', '09:00–12:00', '12:00–15:00', '15:00–18:00', '18:00–21:00'];
@@ -56,7 +57,7 @@ export default function AvailabilityScreen() {
       <ScrollView contentContainerStyle={styles.scroll}>
 
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()}>
+          <TouchableOpacity onPress={() => goBackFrom('availability')} hitSlop={12} accessibilityRole="button" accessibilityLabel="Back">
             <Ionicons name="arrow-back" size={24} color={Colors.foreground} />
           </TouchableOpacity>
           <View>

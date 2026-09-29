@@ -10,7 +10,9 @@ import { router, useFocusEffect } from 'expo-router';
 import { useTheme } from '@context/theme';
 import { useAuth } from '@context/auth';
 import { FontSize, FontWeight, Spacing, Radius, Shadow } from '@constants/theme';
+import { alertError } from '@utils/errors';
 import { api } from '@utils/api';
+import { timeAgo } from '@utils/normalize';
 import EmptyState from '@components/EmptyState';
 
 const CATEGORIES = ['Payment Issue', 'Booking Problem', 'App Issue', 'Verification', 'Other'];
@@ -63,17 +65,24 @@ export default function SupportScreen() {
       Alert.alert('Required', 'Please fill in the subject and description');
       return;
     }
+    if (subject.trim().length < 5) {
+      Alert.alert('Subject too short', 'Please describe the issue in at least 5 characters.');
+      return;
+    }
     setSubmitting(true);
     try {
-      await api.post('/support/tickets', { category, subject: subject.trim(), description: description.trim() }, token);
+      // The ticket API has no description field — it stores the subject only —
+      // so the details go in as the ticket's first message.
+      const created = await api.post('/support/tickets', { category, subject: subject.trim() }, token);
+      await api.post(`/support/tickets/${created.data.ticket_id}/messages`, { content: description.trim() }, token);
       setShowModal(false);
       setSubject('');
       setDescription('');
       setCategory(CATEGORIES[0]);
-      await fetchTickets();
-      Alert.alert('Ticket Raised', 'Our support team will respond within 24 hours.');
+      fetchTickets();
+      router.push(`/support/${created.data.ticket_id}`);
     } catch (e) {
-      Alert.alert('Error', e.message);
+      alertError('Error', e);
     } finally {
       setSubmitting(false);
     }
@@ -82,11 +91,11 @@ export default function SupportScreen() {
   return (
     <SafeAreaView style={[styles.root, { backgroundColor: Colors.background }]} edges={['top']}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
+        <TouchableOpacity onPress={() => router.back()} hitSlop={12} accessibilityRole="button" accessibilityLabel="Back">
           <Ionicons name="arrow-back" size={24} color={Colors.foreground} />
         </TouchableOpacity>
         <Text style={[styles.title, { color: Colors.foreground }]}>Support</Text>
-        <TouchableOpacity onPress={() => setShowModal(true)}>
+        <TouchableOpacity onPress={() => setShowModal(true)} hitSlop={12} accessibilityRole="button" accessibilityLabel="Raise a new ticket">
           <Ionicons name="add-circle-outline" size={28} color={Colors.primary} />
         </TouchableOpacity>
       </View>
@@ -109,23 +118,26 @@ export default function SupportScreen() {
         renderItem={({ item }) => {
           const statusColor = STATUS_COLOR[item.status] ?? Colors.mutedForeground;
           return (
-            <View style={[styles.ticket, { backgroundColor: Colors.surface, borderColor: Colors.border }, Shadow.sm]}>
+            <TouchableOpacity
+              style={[styles.ticket, { backgroundColor: Colors.surface, borderColor: Colors.border }, Shadow.sm]}
+              onPress={() => router.push(`/support/${item.ticket_id}`)}
+              activeOpacity={0.85}
+            >
               <View style={styles.ticketRow}>
                 <Text style={[styles.ticketSubject, { color: Colors.foreground }]} numberOfLines={1}>
                   {item.subject}
                 </Text>
                 <View style={[styles.statusBadge, { backgroundColor: statusColor + '18' }]}>
-                  <Text style={[styles.statusText, { color: statusColor }]}>{item.status}</Text>
+                  <Text style={[styles.statusText, { color: statusColor }]}>{item.status.replace('_', ' ')}</Text>
                 </View>
               </View>
-              <Text style={[styles.ticketCat, { color: Colors.mutedForeground }]}>{item.category}</Text>
-              {item.admin_reply ? (
-                <View style={[styles.reply, { backgroundColor: Colors.primary + '10', borderColor: Colors.primary + '30' }]}>
-                  <Text style={[styles.replyLabel, { color: Colors.primary }]}>Support replied:</Text>
-                  <Text style={[styles.replyText, { color: Colors.foreground }]}>{item.admin_reply}</Text>
-                </View>
-              ) : null}
-            </View>
+              <View style={styles.ticketRow}>
+                <Text style={[styles.ticketCat, { color: Colors.mutedForeground }]}>
+                  {item.category} · {timeAgo(item.updated_at ?? item.created_at)}
+                </Text>
+                <Ionicons name="chevron-forward" size={16} color={Colors.subtleForeground} />
+              </View>
+            </TouchableOpacity>
           );
         }}
         refreshControl={
@@ -139,7 +151,7 @@ export default function SupportScreen() {
           <View style={[styles.modalSheet, { backgroundColor: Colors.surface }]}>
             <View style={styles.modalHeader}>
               <Text style={[styles.modalTitle, { color: Colors.foreground }]}>Raise a Ticket</Text>
-              <TouchableOpacity onPress={() => setShowModal(false)}>
+              <TouchableOpacity onPress={() => setShowModal(false)} hitSlop={12} accessibilityRole="button" accessibilityLabel="Close">
                 <Ionicons name="close" size={24} color={Colors.foreground} />
               </TouchableOpacity>
             </View>
@@ -209,9 +221,6 @@ const styles = StyleSheet.create({
   statusBadge:  { borderRadius: Radius.full, paddingHorizontal: 8, paddingVertical: 3 },
   statusText:   { fontSize: FontSize.xs, fontWeight: FontWeight.bold },
   ticketCat:    { fontSize: FontSize.xs },
-  reply:        { borderRadius: Radius.md, borderWidth: 1, padding: Spacing.sm, gap: 3 },
-  replyLabel:   { fontSize: FontSize.xs, fontWeight: FontWeight.bold },
-  replyText:    { fontSize: FontSize.sm, lineHeight: 20 },
   modalOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' },
   modalSheet:   { borderTopLeftRadius: Radius.xl2, borderTopRightRadius: Radius.xl2, padding: Spacing.base, paddingBottom: 40, gap: Spacing.md },
   modalHeader:  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },

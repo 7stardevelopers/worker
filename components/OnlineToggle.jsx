@@ -22,7 +22,15 @@ export default function OnlineToggle({ isOnline, onToggle, loading }) {
   const offlineColor = Colors.border;
 
   return (
-    <View style={[styles.wrapper, { backgroundColor: Colors.surface, borderColor: Colors.border }]}>
+    // The whole card is the tap target — the worker toggles this constantly, often one-handed.
+    <TouchableOpacity
+      style={[styles.wrapper, { backgroundColor: Colors.surface, borderColor: Colors.border }]}
+      onPress={loading ? undefined : onToggle}
+      activeOpacity={0.85}
+      accessibilityRole="switch"
+      accessibilityLabel="Available for jobs"
+      accessibilityState={{ checked: isOnline, busy: !!loading }}
+    >
       <Animated.View style={[styles.glow, { opacity: glowOpacity }]}>
         <LinearGradient
           colors={[onlineColor + '18', 'transparent']}
@@ -35,11 +43,11 @@ export default function OnlineToggle({ isOnline, onToggle, loading }) {
           {isOnline ? 'You are Online' : 'You are Offline'}
         </Text>
         <Text style={[styles.sub, { color: Colors.subtleForeground }]}>
-          {isOnline ? 'Accepting new job requests' : 'Toggle to start accepting jobs'}
+          {isOnline ? 'Accepting new job requests' : 'Tap to start accepting jobs'}
         </Text>
       </View>
 
-      <TouchableOpacity onPress={loading ? undefined : onToggle} activeOpacity={0.8}>
+      <View>
         <View style={[styles.track, { backgroundColor: isOnline ? onlineColor + '30' : Colors.surfaceRaised, borderColor: isOnline ? onlineColor : Colors.border }]}>
           <Animated.View style={[styles.thumb, { backgroundColor: isOnline ? onlineColor : Colors.mutedForeground, transform: [{ translateX: thumbTranslate }] }]}>
             <Ionicons
@@ -49,8 +57,8 @@ export default function OnlineToggle({ isOnline, onToggle, loading }) {
             />
           </Animated.View>
         </View>
-      </TouchableOpacity>
-    </View>
+      </View>
+    </TouchableOpacity>
   );
 }
 

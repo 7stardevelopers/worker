@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Text, Animated, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { APP_NAME } from '@constants/brand';
 
 export default function SplashOverlay({ onDone }) {
   const containerOpacity = useRef(new Animated.Value(1)).current;
@@ -53,12 +54,12 @@ export default function SplashOverlay({ onDone }) {
           start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
           style={styles.logoBox}
         >
-          <Text style={styles.logoText}>7★</Text>
+          <Text style={styles.logoText}>M</Text>
         </LinearGradient>
       </Animated.View>
 
       <Animated.View style={{ opacity: titleOpacity, transform: [{ translateY: titleY }], alignItems: 'center' }}>
-        <Text style={styles.title}>7StarWorker</Text>
+        <Text style={styles.title}>{APP_NAME}</Text>
         <Text style={styles.subtitle}>Expert Partner App</Text>
       </Animated.View>
     </Animated.View>

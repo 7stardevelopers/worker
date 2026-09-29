@@ -5,11 +5,12 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useTheme } from '@context/theme';
 import { useAuth } from '@context/auth';
 import { useProvider } from '@context/provider';
 import { FontSize, FontWeight, Spacing, Radius } from '@constants/theme';
+import { alertError } from '@utils/errors';
 import { api } from '@utils/api';
 
 const STEPS = ['Personal', 'Services', 'Documents', 'Bank', 'Availability'];
@@ -17,7 +18,9 @@ const STEPS = ['Personal', 'Services', 'Documents', 'Bank', 'Availability'];
 export default function PersonalScreen() {
   const { Colors } = useTheme();
   const { user, updateUser } = useAuth();
-  const { profile } = useProvider();
+  const { profile, fetchProfile } = useProvider();
+  // Opened from Profile → save and return instead of continuing onboarding.
+  const editing = useLocalSearchParams().mode === 'edit';
   const { token } = useAuth();
 
   const [name, setName]   = useState(user?.name ?? '');
@@ -34,9 +37,10 @@ export default function PersonalScreen() {
         api.patch('/providers/me', { bio: bio.trim(), years_experience: parseInt(years) || 0 }, token),
       ]);
       await updateUser({ name: name.trim() });
-      router.push('/onboarding/services');
+      if (editing) { await fetchProfile(); router.back(); }
+      else router.push('/onboarding/services');
     } catch (e) {
-      Alert.alert('Error', e.message);
+      alertError('Error', e);
     } finally {
       setLoading(false);
     }
@@ -46,12 +50,17 @@ export default function PersonalScreen() {
     <SafeAreaView style={[styles.root, { backgroundColor: Colors.background }]} edges={['top']}>
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
 
-        {/* Progress */}
-        <View style={styles.progress}>
-          {STEPS.map((s, i) => (
-            <View key={s} style={[styles.stepDot, { backgroundColor: i === 0 ? Colors.primary : Colors.border }]} />
-          ))}
-        </View>
+        {editing ? (
+          <TouchableOpacity onPress={() => router.back()} style={styles.editBack} accessibilityLabel="Back">
+            <Ionicons name="arrow-back" size={24} color={Colors.foreground} />
+          </TouchableOpacity>
+        ) : (
+          <View style={styles.progress}>
+            {STEPS.map((s, i) => (
+              <View key={s} style={[styles.stepDot, { backgroundColor: i === 0 ? Colors.primary : Colors.border }]} />
+            ))}
+          </View>
+        )}
 
         <View style={styles.headerSection}>
           <View style={[styles.stepIcon, { backgroundColor: Colors.primary + '20' }]}>
@@ -113,7 +122,7 @@ export default function PersonalScreen() {
           activeOpacity={0.85}
         >
           <LinearGradient colors={Colors.gradientPrimary} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.nextGrad}>
-            <Text style={styles.nextText}>{loading ? 'Saving...' : 'Next: Services'}</Text>
+            <Text style={styles.nextText}>{loading ? 'Saving...' : editing ? 'Save' : 'Next: Services'}</Text>
             <Ionicons name="arrow-forward" size={18} color="#FFF" />
           </LinearGradient>
         </TouchableOpacity>
@@ -126,6 +135,7 @@ const styles = StyleSheet.create({
   root:          { flex: 1 },
   scroll:        { padding: Spacing.base, paddingBottom: 120, gap: Spacing.xl },
   progress:      { flexDirection: 'row', gap: 6, justifyContent: 'center' },
+  editBack:      { width: 40, height: 40, justifyContent: 'center' },
   stepDot:       { width: 8, height: 8, borderRadius: 4 },
   headerSection: { alignItems: 'center', gap: Spacing.md, paddingTop: Spacing.md },
   stepIcon:      { width: 64, height: 64, borderRadius: 32, justifyContent: 'center', alignItems: 'center' },

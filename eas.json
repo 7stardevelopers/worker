@@ -1,13 +1,15 @@
 {
   "cli": {
-    "version": ">= 12.0.0"
+    "version": ">= 12.0.0",
+    "appVersionSource": "remote"
   },
   "build": {
     "development": {
       "developmentClient": true,
       "distribution": "internal",
       "env": {
-        "EXPO_PUBLIC_API_BASE_URL": "https://1ipuylc4mh.execute-api.ap-south-1.amazonaws.com/Prod"
+        "EXPO_PUBLIC_API_BASE_URL": "https://g61ebs8u40.execute-api.ap-south-1.amazonaws.com/Prod",
+        "EXPO_PUBLIC_WSS_URL": "wss://jkf4402z39.execute-api.ap-south-1.amazonaws.com/production"
       }
     },
     "preview": {
@@ -16,7 +18,8 @@
       },
       "distribution": "internal",
       "env": {
-        "EXPO_PUBLIC_API_BASE_URL": "https://1ipuylc4mh.execute-api.ap-south-1.amazonaws.com/Prod"
+        "EXPO_PUBLIC_API_BASE_URL": "https://g61ebs8u40.execute-api.ap-south-1.amazonaws.com/Prod",
+        "EXPO_PUBLIC_WSS_URL": "wss://jkf4402z39.execute-api.ap-south-1.amazonaws.com/production"
       }
     },
     "production": {
@@ -26,7 +29,8 @@
       "env": {
         "EXPO_PUBLIC_API_BASE_URL": "https://api.7starexperts.com",
         "EXPO_PUBLIC_WSS_URL": "wss://wss.7starexperts.com"
-      }
+      },
+      "autoIncrement": true
     }
   }
 }

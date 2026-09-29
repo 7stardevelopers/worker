@@ -1,78 +1,53 @@
 import * as TaskManager from 'expo-task-manager';
 import * as Location from 'expo-location';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Alert } from 'react-native';
+import { router } from 'expo-router';
+import { api } from '@utils/api';
+import { APP_NAME } from '@constants/brand';
 
 export const LOCATION_TASK = 'WORKER_LOCATION_TASK';
-const BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
+
+// Statuses during which the customer is watching the worker on the map.
+const LIVE_STATUSES = ['EN_ROUTE', 'IN_PROGRESS'];
+// An accepted job starts sharing location this close to its slot.
+const PRE_JOB_WINDOW_MIN = 60;
 
 TaskManager.defineTask(LOCATION_TASK, async ({ data, error }) => {
   if (error) {
     console.warn('[Location] Task error:', error.message);
     return;
   }
-  if (!data) {
-    console.log('[Location] Task fired with no data');
-    return;
-  }
-
-  const { locations } = data;
-  const loc = locations?.[0];
-  if (!loc) {
-    console.log('[Location] Task fired with no locations in payload');
-    return;
-  }
-
-  console.log('[Location] 📍 Got fix:', loc.coords.latitude, loc.coords.longitude, '| BASE_URL:', BASE_URL ?? 'NOT SET');
-
+  const loc = data?.locations?.[0];
+  if (!loc) return;
   try {
-    const token = await AsyncStorage.getItem('auth_access_token');
-    if (!token) {
-      console.warn('[Location] No auth token in storage — skipping PATCH');
-      return;
-    }
-
-    const res = await fetch(`${BASE_URL}/providers/me/location`, {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
-      body: JSON.stringify({
-        lat: loc.coords.latitude,
-        lng: loc.coords.longitude,
-      }),
-    });
-    console.log('[Location] PATCH /providers/me/location →', res.status);
+    // Goes through api.js so an expired access token is refreshed instead of
+    // every update failing with 401 once the app has been backgrounded > 15 min.
+    await api.patch('/providers/me/location', { lat: loc.coords.latitude, lng: loc.coords.longitude });
   } catch (e) {
-    console.warn('[Location] PATCH failed (non-fatal):', e.message);
+    console.warn('[Location] update failed (non-fatal):', e.message);
   }
 });
 
-export async function startLocationTracking() {
-  const fg = await Location.requestForegroundPermissionsAsync();
-  if (fg.status !== 'granted') {
-    Alert.alert(
-      'Location Permission Needed',
-      'Turn on location access so customers can see you on the way. Without it, live tracking won\'t work for this job.'
-    );
-    return false;
-  }
+async function hasTrackingPermission() {
+  const fg = await Location.getForegroundPermissionsAsync();
+  if (fg.status !== 'granted') return false;
+  const bg = await Location.getBackgroundPermissionsAsync();
+  return bg.status === 'granted';
+}
 
-  const bg = await Location.requestBackgroundPermissionsAsync();
-  if (bg.status !== 'granted') {
-    Alert.alert(
-      'Background Location Needed',
-      'Set location access to "Allow all the time" in Settings so your position keeps updating while the app is in the background.'
-    );
+/**
+ * Starts background location sharing. Without permission, `silent` just
+ * returns false (used when resuming after an app restart); otherwise the
+ * worker is sent to the permission explainer (app/permissions.jsx) — the OS
+ * prompt is only ever shown from there.
+ */
+export async function startLocationTracking({ silent = false } = {}) {
+  if (!(await hasTrackingPermission())) {
+    if (!silent) router.push('/permissions');
     return false;
   }
 
   const isRunning = await Location.hasStartedLocationUpdatesAsync(LOCATION_TASK).catch(() => false);
-  if (isRunning) {
-    console.log('[Location] Task already running');
-    return true;
-  }
+  if (isRunning) return true;
 
   await Location.startLocationUpdatesAsync(LOCATION_TASK, {
     accuracy: Location.Accuracy.High,
@@ -80,18 +55,39 @@ export async function startLocationTracking() {
     distanceInterval: 10,
     showsBackgroundLocationIndicator: true,
     foregroundService: {
-      notificationTitle: '7StarWorker',
+      notificationTitle: APP_NAME,
       notificationBody: 'Sharing your location with the customer.',
     },
   });
-  console.log('[Location] ✅ Started background tracking task');
   return true;
 }
 
 export async function stopLocationTracking() {
   const isRunning = await Location.hasStartedLocationUpdatesAsync(LOCATION_TASK).catch(() => false);
-  if (isRunning) {
-    await Location.stopLocationUpdatesAsync(LOCATION_TASK);
-    console.log('[Location] 🛑 Stopped background tracking task');
+  if (isRunning) await Location.stopLocationUpdatesAsync(LOCATION_TASK);
+}
+
+export function needsTracking(job) {
+  if (LIVE_STATUSES.includes(job.status)) return true;
+  if (job.status === 'ACCEPTED' && job.scheduled_at) {
+    return (new Date(job.scheduled_at) - Date.now()) / 60000 <= PRE_JOB_WINDOW_MIN;
+  }
+  return false;
+}
+
+/**
+ * Makes GPS match reality: stop it when the worker has no job that needs it
+ * (job cancelled by the customer/admin, finished on another device…), resume it
+ * silently if a live job exists but the OS killed the task.
+ */
+export async function reconcileTracking(token) {
+  if (!token) return;
+  try {
+    const res = await api.get('/bookings', token);
+    const jobs = Array.isArray(res.data) ? res.data : [];
+    if (jobs.some(needsTracking)) await startLocationTracking({ silent: true });
+    else await stopLocationTracking();
+  } catch (e) {
+    console.warn('[Location] reconcile failed (non-fatal):', e.message);
   }
 }

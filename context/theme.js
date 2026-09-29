@@ -14,7 +14,8 @@ const STORAGE_KEY = 'app_theme_mode';
 
 export function ThemeProvider({ children }) {
   const systemScheme = useColorScheme();
-  const [mode, setMode] = useState('light');
+  // Start dark (the app's default) so launch doesn't flash light before storage loads.
+  const [mode, setMode] = useState('dark');
 
   useEffect(() => {
     AsyncStorage.getItem(STORAGE_KEY).then(saved => {

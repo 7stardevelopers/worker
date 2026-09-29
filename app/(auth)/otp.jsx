@@ -9,6 +9,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useAuth } from '@context/auth';
 import { useTheme } from '@context/theme';
 import { FontSize, FontWeight, Spacing, Radius } from '@constants/theme';
+import { friendlyError } from '@utils/errors';
 import { api } from '@utils/api';
 
 const OTP_LENGTH = 6;
@@ -47,7 +48,7 @@ export default function OtpScreen() {
       // index.jsx reads provider status and routes to (tabs) or onboarding
       router.replace('/');
     } catch (e) {
-      setError(e.message);
+      setError(friendlyError(e) ?? '');
       setLoading(false);
     }
   };
@@ -60,7 +61,7 @@ export default function OtpScreen() {
       setTimer(30);
       setError('');
     } catch (e) {
-      setError(e.message);
+      setError(friendlyError(e) ?? '');
     } finally {
       setResending(false);
     }
@@ -75,7 +76,7 @@ export default function OtpScreen() {
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
         <View style={styles.content}>
 
-          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} hitSlop={12} accessibilityRole="button" accessibilityLabel="Back">
             <Ionicons name="arrow-back" size={24} color={Colors.foreground} />
           </TouchableOpacity>
 

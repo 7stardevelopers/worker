@@ -63,6 +63,9 @@ export default function FloatingTabBar({ state, navigation }) {
                 style={styles.tab}
                 onPress={() => handlePress(tab.name, state.routes[i]?.key ?? tab.name)}
                 activeOpacity={0.7}
+                accessibilityRole="tab"
+                accessibilityLabel={tab.label}
+                accessibilityState={{ selected: isActive }}
               >
                 <Ionicons name={isActive ? tab.activeIcon : tab.icon} size={22} color={color} />
                 <Text style={[styles.label, { color }]}>{tab.label}</Text>

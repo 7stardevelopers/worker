@@ -10,6 +10,8 @@ import { useTheme } from '@context/theme';
 import { useAuth } from '@context/auth';
 import { useProvider } from '@context/provider';
 import { FontSize, FontWeight, Spacing, Radius, Shadow } from '@constants/theme';
+import { alertError } from '@utils/errors';
+import { formatINR, MIN_PAYOUT } from '@utils/money';
 import { api } from '@utils/api';
 import { normalizeEarning } from '@utils/normalize';
 import EarningsChart from '@components/EarningsChart';
@@ -77,13 +79,13 @@ export default function EarningsScreen() {
   }, [load]);
 
   const handlePayoutRequest = () => {
-    if (walletBalance < 10000) {
-      Alert.alert('Minimum Payout', 'Minimum payout amount is ₹100');
+    if (walletBalance < MIN_PAYOUT) {
+      Alert.alert('Minimum Payout', `Minimum payout amount is ${formatINR(MIN_PAYOUT)}`);
       return;
     }
     Alert.alert(
       'Request Payout',
-      `Request payout of ₹${(walletBalance / 100).toFixed(0)} to account ****${bankLast4}?`,
+      `Request payout of ${formatINR(walletBalance)} to account ****${bankLast4}?`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -96,7 +98,7 @@ export default function EarningsScreen() {
               Alert.alert('Payout Requested', 'Your payout will be processed within 2-3 business days.');
               await fetchProfile();
             } catch (e) {
-              Alert.alert('Error', e.message);
+              alertError('Payout failed', e);
             } finally {
               setRequesting(false);
             }
@@ -137,11 +139,11 @@ export default function EarningsScreen() {
             <View style={[styles.walletCard, Shadow.lg]}>
               <LinearGradient colors={['#6366F1', '#8B5CF6']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.walletGrad}>
                 <Text style={styles.walletLabel}>Wallet Balance</Text>
-                <Text style={styles.walletAmount}>₹{(walletBalance / 100).toFixed(2)}</Text>
+                <Text style={styles.walletAmount}>{formatINR(walletBalance, { decimals: 2 })}</Text>
                 <TouchableOpacity
-                  style={[styles.payoutBtn, { opacity: walletBalance >= 10000 && !requesting ? 1 : 0.5 }]}
+                  style={[styles.payoutBtn, { opacity: walletBalance >= MIN_PAYOUT && !requesting ? 1 : 0.5 }]}
                   onPress={handlePayoutRequest}
-                  disabled={walletBalance < 10000 || requesting}
+                  disabled={walletBalance < MIN_PAYOUT || requesting}
                   activeOpacity={0.85}
                 >
                   <Ionicons name="send-outline" size={16} color="#6366F1" />
@@ -159,7 +161,7 @@ export default function EarningsScreen() {
               ].map(s => (
                 <View key={s.label} style={[styles.summaryCard, { backgroundColor: Colors.surface, borderColor: Colors.border }]}>
                   <Text style={[styles.summaryLabel, { color: Colors.mutedForeground }]}>{s.label}</Text>
-                  <Text style={[styles.summaryValue, { color: Colors.foreground }]}>₹{(s.value / 100).toFixed(0)}</Text>
+                  <Text style={[styles.summaryValue, { color: Colors.foreground }]}>{formatINR(s.value)}</Text>
                 </View>
               ))}
             </View>
@@ -188,7 +190,7 @@ export default function EarningsScreen() {
                 <Text style={[styles.rowTime, { color: Colors.mutedForeground }]}>{item.timeAgo}</Text>
               </View>
               <Text style={[styles.rowAmount, { color: item.type === 'DEDUCTION' ? Colors.error : Colors.success }]}>
-                {cfg.sign}₹{(item.amount / 100).toFixed(0)}
+                {cfg.sign}{formatINR(item.amount)}
               </Text>
             </View>
           );

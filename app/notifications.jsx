@@ -56,7 +56,7 @@ export default function NotificationsScreen() {
   return (
     <SafeAreaView style={[styles.root, { backgroundColor: Colors.background }]} edges={['top']}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
+        <TouchableOpacity onPress={() => router.back()} hitSlop={12} accessibilityRole="button" accessibilityLabel="Back">
           <Ionicons name="arrow-back" size={24} color={Colors.foreground} />
         </TouchableOpacity>
         <Text style={[styles.title, { color: Colors.foreground }]}>Notifications</Text>

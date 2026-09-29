@@ -1,7 +1,17 @@
 import React, { useRef } from 'react';
 import { Animated, Pressable } from 'react-native';
 
-export default function PressableScale({ children, onPress, style, scale = 0.96, disabled, ...rest }) {
+/**
+ * Drop-in replacement for TouchableOpacity with spring scale feedback.
+ * Renders children inside an Animated.View that scales on press.
+ *
+ * Props:
+ *   scale       target scale on press  (default 0.96)
+ *   style          style applied to the inner Animated.View (visuals)
+ *   containerStyle style applied to the Pressable itself (layout: flex, margins)
+ *   All other Pressable props (onPress, disabled, hitSlop, etc.)
+ */
+export default function PressableScale({ children, onPress, style, containerStyle, scale = 0.96, disabled, ...rest }) {
   const scaleAnim = useRef(new Animated.Value(1)).current;
 
   const pressIn = () => {
@@ -19,6 +29,7 @@ export default function PressableScale({ children, onPress, style, scale = 0.96,
       onPressIn={pressIn}
       onPressOut={pressOut}
       disabled={disabled}
+      style={containerStyle}
       {...rest}
     >
       <Animated.View style={[style, { transform: [{ scale: scaleAnim }] }]}>

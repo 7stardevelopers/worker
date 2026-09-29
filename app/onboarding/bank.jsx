@@ -5,19 +5,25 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useTheme } from '@context/theme';
 import { useAuth } from '@context/auth';
+import { useProvider } from '@context/provider';
 import { FontSize, FontWeight, Spacing, Radius } from '@constants/theme';
+import { alertError } from '@utils/errors';
 import { api } from '@utils/api';
+import { goBackFrom } from '@utils/onboarding';
 
 export default function BankScreen() {
   const { Colors } = useTheme();
   const { token } = useAuth();
-  const [accountNumber,  setAccountNumber]  = useState('');
-  const [confirmAccount, setConfirmAccount] = useState('');
-  const [ifsc,           setIfsc]           = useState('');
-  const [accountName,    setAccountName]    = useState('');
+  const { profile, fetchProfile } = useProvider();
+  const editing = useLocalSearchParams().mode === 'edit';
+  // Pre-fill what's on file so a worker fixing one field doesn't retype everything.
+  const [accountNumber,  setAccountNumber]  = useState(profile?.bank_account_number ?? '');
+  const [confirmAccount, setConfirmAccount] = useState(profile?.bank_account_number ?? '');
+  const [ifsc,           setIfsc]           = useState(profile?.bank_ifsc ?? '');
+  const [accountName,    setAccountName]    = useState(profile?.bank_account_name ?? '');
   const [saving,         setSaving]         = useState(false);
 
   const handleNext = async () => {
@@ -40,9 +46,10 @@ export default function BankScreen() {
         bank_ifsc: ifsc.toUpperCase(),
         bank_account_name: accountName,
       }, token);
-      router.push('/onboarding/availability');
+      if (editing) { await fetchProfile(); router.back(); }
+      else router.push('/onboarding/availability');
     } catch (e) {
-      Alert.alert('Error', e.message);
+      alertError('Error', e);
     } finally {
       setSaving(false);
     }
@@ -53,7 +60,7 @@ export default function BankScreen() {
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
 
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()}>
+          <TouchableOpacity onPress={() => goBackFrom('bank')} hitSlop={12} accessibilityRole="button" accessibilityLabel="Back">
             <Ionicons name="arrow-back" size={24} color={Colors.foreground} />
           </TouchableOpacity>
           <View>
@@ -103,7 +110,7 @@ export default function BankScreen() {
           activeOpacity={0.85}
         >
           <LinearGradient colors={Colors.gradientPrimary} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.nextGrad}>
-            <Text style={styles.nextText}>{saving ? 'Saving...' : 'Next: Availability'}</Text>
+            <Text style={styles.nextText}>{saving ? 'Saving...' : editing ? 'Save' : 'Next: Availability'}</Text>
             <Ionicons name="arrow-forward" size={18} color="#FFF" />
           </LinearGradient>
         </TouchableOpacity>

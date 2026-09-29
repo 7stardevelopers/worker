@@ -1,202 +1,256 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
-  View, Text, FlatList, RefreshControl, StyleSheet, TouchableOpacity, Alert,
+  View, Text, ScrollView, RefreshControl, StyleSheet, TouchableOpacity, Vibration,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import * as Notifications from 'expo-notifications';
+import * as Haptics from 'expo-haptics';
+import { router, useFocusEffect } from 'expo-router';
 import { useTheme } from '@context/theme';
 import { useAuth } from '@context/auth';
 import { useProvider } from '@context/provider';
 import { FontSize, FontWeight, Spacing, Radius } from '@constants/theme';
+import { alertError } from '@utils/errors';
 import { api } from '@utils/api';
-import { normalizeJob } from '@utils/normalize';
+import { formatINR } from '@utils/money';
+import { groupJobs, todaySummary, LIVE_STATUSES } from '@utils/jobs';
+import useJobFeed from '@utils/useJobFeed';
+import useScreenFocus from '@utils/useScreenFocus';
 import JobCard from '@components/JobCard';
+import ActiveJobCard from '@components/ActiveJobCard';
 import OnlineToggle from '@components/OnlineToggle';
 import JobRequestModal from '@components/JobRequestModal';
 import Skeleton from '@components/Skeleton';
 import EmptyState from '@components/EmptyState';
 
-const FILTERS = ['All', 'Pending', 'Active', 'Completed', 'Cancelled'];
+function greeting() {
+  const h = new Date().getHours();
+  if (h < 12) return 'Good morning';
+  if (h < 17) return 'Good afternoon';
+  return 'Good evening';
+}
 
-const FILTER_STATUSES = {
-  All:       null,
-  Pending:   ['PENDING'],
-  Active:    ['ACCEPTED', 'EN_ROUTE', 'IN_PROGRESS'],
-  Completed: ['COMPLETED'],
-  Cancelled: ['CANCELLED', 'REJECTED'],
-};
+function Section({ title, count, children, Colors }) {
+  return (
+    <View style={styles.section}>
+      <View style={styles.sectionHead}>
+        <Text style={[styles.sectionTitle, { color: Colors.foreground }]}>{title}</Text>
+        {count ? (
+          <View style={[styles.countPill, { backgroundColor: Colors.primary + '20' }]}>
+            <Text style={[styles.countText, { color: Colors.primary }]}>{count}</Text>
+          </View>
+        ) : null}
+      </View>
+      {children}
+    </View>
+  );
+}
 
 export default function JobsScreen() {
   const { Colors } = useTheme();
-  const { token } = useAuth();
-  const { isAvailable, toggleAvailability, loading: provLoading, fetchProfile, locationOk } = useProvider();
-
-  const [jobs,        setJobs]        = useState([]);
-  const [filter,      setFilter]      = useState('All');
-  const [loading,     setLoading]     = useState(true);
-  const [refreshing,  setRefreshing]  = useState(false);
+  const { token, user } = useAuth();
+  const { profile, isAvailable, toggleAvailability, loading: provLoading, fetchProfile, locationOk } = useProvider();
+  const focused = useScreenFocus();
   const [incomingJob, setIncomingJob] = useState(null);
+  const [accepting,   setAccepting]   = useState(false);
+  const [declined,    setDeclined]    = useState(() => new Set());
+  const [refreshing,  setRefreshing]  = useState(false);
+  const [unread,      setUnread]      = useState(0);
 
-  const fetchJobs = useCallback(async () => {
-    if (!token) return;
-    try {
-      // "My" jobs (already assigned to this provider) + "available" broadcast
-      // jobs (PENDING, unassigned, matched by service — not yet claimed by
-      // anyone). Both are needed: list_mine only returns bookings that
-      // already have this provider_id set.
-      const [mineRes, availableRes] = await Promise.all([
-        api.get('/bookings', token),
-        api.get('/bookings/available', token).catch(e => {
-          console.warn('[Jobs] available fetch failed:', e.message);
-          return { data: [] };
-        }),
-      ]);
-      const mine      = Array.isArray(mineRes.data) ? mineRes.data : [];
-      const available = Array.isArray(availableRes.data) ? availableRes.data : [];
-      const byId = new Map();
-      [...mine, ...available].forEach(b => byId.set(b.booking_id, b));
-      setJobs(Array.from(byId.values()).map(normalizeJob));
-    } catch (e) {
-      console.warn('[Jobs] fetch failed:', e.message);
-    }
-  }, [token]);
+  const hasLiveJob = useCallback(list => list.some(j => LIVE_STATUSES.includes(j.status)), []);
 
-  const loadAll = useCallback(async () => {
-    setLoading(true);
-    await fetchJobs();
-    setLoading(false);
-  }, [fetchJobs]);
+  const { jobs, loading, error, refresh } = useJobFeed({
+    token,
+    isAvailable,
+    onNewRequest: job => {
+      // Don't interrupt a worker who is on the way to / working at a customer's home.
+      if (hasLiveJob(jobs) || declined.has(job.id)) return;
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
+      Vibration.vibrate([0, 300, 150, 300]);
+      setIncomingJob(job);
+    },
+  });
+
+  const groups = useMemo(() => {
+    const g = groupJobs(jobs);
+    return { ...g, requests: g.requests.filter(j => !declined.has(j.id)) };
+  }, [jobs, declined]);
+  const today = useMemo(() => todaySummary(jobs), [jobs]);
+
+  useFocusEffect(useCallback(() => {
+    refresh();
+    api.get('/notifications', token)
+      .then(res => setUnread((res.data ?? []).filter(n => !n.read_ind).length))
+      .catch(() => {});
+  }, [refresh, token]));
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await Promise.all([fetchJobs(), fetchProfile()]);
+    await Promise.all([refresh(), fetchProfile()]);
     setRefreshing(false);
-  }, [fetchJobs, fetchProfile]);
+  }, [refresh, fetchProfile]);
 
-  useEffect(() => { loadAll(); }, [loadAll]);
-
-  useEffect(() => {
-    const sub = Notifications.addNotificationReceivedListener(async notif => {
-      if (notif.request.content.data?.type === 'job_available') {
-        const bookingId = notif.request.content.data?.booking_id;
-        try {
-          const res = await api.get(`/bookings/${bookingId}`, token);
-          setIncomingJob(normalizeJob(res.data));
-        } catch {}
-      }
-    });
-    return () => sub.remove();
-  }, [token]);
+  const onToggle = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+    toggleAvailability();
+  }, [toggleAvailability]);
 
   const handleAccept = async () => {
     if (!incomingJob) return;
+    setAccepting(true);
     try {
-      // A broadcast job has no assigned provider yet — /accept atomically
-      // claims it (first provider to hit this wins); /status ACCEPTED would
-      // 403 here since that path requires already being the assigned provider.
+      // Broadcast jobs have no provider yet — /accept atomically claims it (first worker wins).
       await api.patch(`/bookings/${incomingJob.id}/accept`, {}, token);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      const id = incomingJob.id;
       setIncomingJob(null);
-      fetchJobs();
+      refresh();
+      router.push(`/job/${id}`);
     } catch (e) {
-      Alert.alert('Job unavailable', e.message ?? 'Another provider may have already accepted it.');
+      alertError('Job unavailable', e, 'Another partner may have already accepted it.');
       setIncomingJob(null);
-      fetchJobs();
+      refresh();
+    } finally {
+      setAccepting(false);
     }
   };
 
-  const handleReject = async () => {
-    // Broadcast jobs have no per-provider decline — just dismiss locally so
-    // the job stays visible to other nearby providers.
+  const handleDecline = () => {
+    // No per-worker decline on the backend — hide it here so it stays open for others.
+    if (incomingJob) setDeclined(prev => new Set(prev).add(incomingJob.id));
     setIncomingJob(null);
   };
 
-  const filteredJobs = FILTER_STATUSES[filter]
-    ? jobs.filter(j => FILTER_STATUSES[filter].includes(j.status))
-    : jobs;
+  const firstName = user?.name?.split(' ')[0] ?? 'Partner';
+  const rating = Number(profile?.avg_rating ?? 0);
+  const showSkeleton = loading && jobs.length === 0;
+  const loadFailed = !!error && jobs.length === 0;
 
   return (
     <SafeAreaView style={[styles.root, { backgroundColor: Colors.background }]} edges={['top']}>
       <View style={styles.header}>
-        <Text style={[styles.title, { color: Colors.foreground }]}>My Jobs</Text>
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.greeting, { color: Colors.mutedForeground }]}>{greeting()}</Text>
+          <Text style={[styles.name, { color: Colors.foreground }]} numberOfLines={1}>{firstName}</Text>
+        </View>
+        <TouchableOpacity
+          style={[styles.bell, { backgroundColor: Colors.surface, borderColor: Colors.border }]}
+          onPress={() => router.push('/notifications')}
+          accessibilityLabel={unread ? `Notifications, ${unread} unread` : 'Notifications'}
+        >
+          <Ionicons name="notifications-outline" size={20} color={Colors.mutedForeground} />
+          {unread > 0 && (
+            <View style={[styles.badge, { backgroundColor: Colors.error }]}>
+              <Text style={styles.badgeText}>{unread > 9 ? '9+' : unread}</Text>
+            </View>
+          )}
+        </TouchableOpacity>
       </View>
 
-      <FlatList
-        data={loading ? [] : filteredJobs}
-        keyExtractor={item => item.id}
-        contentContainerStyle={styles.list}
-        ListHeaderComponent={
-          <>
-            <OnlineToggle
-              isOnline={isAvailable}
-              onToggle={toggleAvailability}
-              loading={provLoading}
-            />
-            {!locationOk && (
-              <View style={[styles.locationBanner, { backgroundColor: '#F59E0B18', borderColor: '#F59E0B40' }]}>
-                <Ionicons name="location-outline" size={16} color="#F59E0B" />
-                <Text style={[styles.locationBannerText, { color: Colors.foreground }]}>
-                  Turn on location access (including "Allow all the time") to go online and receive jobs.
-                </Text>
-              </View>
-            )}
-            <View style={styles.filterRow}>
-              {FILTERS.map(f => (
-                <TouchableOpacity
-                  key={f}
-                  style={[
-                    styles.filterChip,
-                    { borderColor: Colors.border, backgroundColor: filter === f ? Colors.primary : Colors.surface },
-                  ]}
-                  onPress={() => setFilter(f)}
-                  activeOpacity={0.8}
-                >
-                  <Text style={[styles.filterText, { color: filter === f ? '#FFF' : Colors.mutedForeground }]}>
-                    {f}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </>
-        }
-        ListEmptyComponent={
-          loading
-            ? <View>{Array.from({ length: 4 }).map((_, i) => <Skeleton.BookingCard key={i} />)}</View>
-            : <EmptyState
-                icon="briefcase-outline"
-                title="No jobs yet"
-                subtitle={isAvailable ? 'Job requests will appear here' : 'Go online to start receiving jobs'}
-              />
-        }
-        renderItem={({ item }) => <JobCard job={item} />}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} colors={[Colors.primary]} />
-        }
+      <ScrollView
+        contentContainerStyle={styles.scroll}
         showsVerticalScrollIndicator={false}
-      />
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} colors={[Colors.primary]} />}
+      >
+        <OnlineToggle isOnline={isAvailable} onToggle={onToggle} loading={provLoading} />
+
+        {!locationOk && (
+          <TouchableOpacity
+            style={[styles.banner, { backgroundColor: Colors.warning + '18', borderColor: Colors.warning + '40' }]}
+            onPress={() => router.push('/permissions')}
+            activeOpacity={0.8}
+            accessibilityRole="button"
+          >
+            <Ionicons name="location-outline" size={16} color={Colors.warning} />
+            <Text style={[styles.bannerText, { color: Colors.foreground }]}>
+              Turn on location access to go online and receive jobs.
+            </Text>
+            <Text style={[styles.bannerCta, { color: Colors.warning }]}>Enable</Text>
+          </TouchableOpacity>
+        )}
+
+        <View style={[styles.today, { backgroundColor: Colors.surface, borderColor: Colors.border }]}>
+          {[
+            { label: 'Jobs today',   value: String(today.count) },
+            { label: 'Earned today', value: formatINR(today.earned) },
+            { label: 'Rating',       value: rating ? `${rating.toFixed(1)}★` : '—' },
+          ].map((s, i) => (
+            <View key={s.label} style={[styles.todayItem, i > 0 && { borderLeftWidth: StyleSheet.hairlineWidth, borderLeftColor: Colors.border }]}>
+              <Text style={[styles.todayValue, { color: Colors.foreground }]}>{s.value}</Text>
+              <Text style={[styles.todayLabel, { color: Colors.mutedForeground }]}>{s.label}</Text>
+            </View>
+          ))}
+        </View>
+
+        {showSkeleton ? (
+          <View style={styles.section}>{Array.from({ length: 3 }).map((_, i) => <Skeleton.BookingCard key={i} />)}</View>
+        ) : loadFailed ? (
+          <EmptyState
+            icon="cloud-offline-outline"
+            title="Couldn't load your jobs"
+            subtitle="Check your connection and try again."
+            cta={{ label: 'Retry', onPress: refresh }}
+          />
+        ) : (
+          <>
+            {groups.active && <ActiveJobCard job={groups.active} paused={!focused} />}
+
+            <Section title="New requests" count={isAvailable ? groups.requests.length : 0} Colors={Colors}>
+              {!isAvailable ? (
+                <EmptyState compact icon="moon-outline" title="You're offline" subtitle="Go online to receive job requests near you." />
+              ) : groups.requests.length === 0 ? (
+                <EmptyState compact icon="radio-outline" title="Waiting for requests" subtitle="New jobs near you will pop up here automatically." />
+              ) : (
+                groups.requests.map(job => <JobCard key={job.id} job={job} />)
+              )}
+            </Section>
+
+            {groups.upcoming.length > 0 && (
+              <Section title="Upcoming" count={groups.upcoming.length} Colors={Colors}>
+                {groups.upcoming.map(job => <JobCard key={job.id} job={job} />)}
+              </Section>
+            )}
+
+            {groups.recent.length > 0 && (
+              <Section title="Recent" Colors={Colors}>
+                {groups.recent.map(job => <JobCard key={job.id} job={job} />)}
+              </Section>
+            )}
+          </>
+        )}
+      </ScrollView>
 
       <JobRequestModal
         visible={!!incomingJob}
         job={incomingJob}
+        accepting={accepting}
         onAccept={handleAccept}
-        onReject={handleReject}
+        onReject={handleDecline}
+        onExpire={() => setIncomingJob(null)}
       />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  root:       { flex: 1 },
-  header:     { paddingHorizontal: Spacing.base, paddingVertical: Spacing.md },
-  title:      { fontSize: FontSize.h1, fontWeight: FontWeight.bold },
-  list:       { paddingBottom: 100, gap: 0 },
-  filterRow:  { flexDirection: 'row', paddingHorizontal: Spacing.base, paddingVertical: Spacing.md, gap: Spacing.sm, flexWrap: 'wrap' },
-  locationBanner: {
-    flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
-    marginHorizontal: Spacing.base, marginTop: Spacing.sm,
-    padding: Spacing.md, borderRadius: Radius.md, borderWidth: 1,
-  },
-  locationBannerText: { flex: 1, fontSize: FontSize.sm },
-  filterChip: { borderRadius: Radius.full, borderWidth: 1, paddingHorizontal: Spacing.md, paddingVertical: 6 },
-  filterText: { fontSize: FontSize.sm, fontWeight: FontWeight.medium },
+  root:         { flex: 1 },
+  header:       { flexDirection: 'row', alignItems: 'center', paddingHorizontal: Spacing.base, paddingVertical: Spacing.md, gap: Spacing.md },
+  greeting:     { fontSize: FontSize.sm },
+  name:         { fontSize: FontSize.h1, fontWeight: FontWeight.bold },
+  bell:         { width: 42, height: 42, borderRadius: 21, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  badge:        { position: 'absolute', top: -2, right: -2, minWidth: 18, height: 18, borderRadius: 9, paddingHorizontal: 4, alignItems: 'center', justifyContent: 'center' },
+  badgeText:    { color: '#FFF', fontSize: 10, fontWeight: FontWeight.bold },
+  scroll:       { paddingBottom: 120 },
+  banner:       { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginHorizontal: Spacing.base, marginTop: Spacing.sm, padding: Spacing.md, borderRadius: Radius.md, borderWidth: 1 },
+  bannerText:   { flex: 1, fontSize: FontSize.sm },
+  bannerCta:    { fontSize: FontSize.sm, fontWeight: FontWeight.bold },
+  today:        { flexDirection: 'row', marginHorizontal: Spacing.base, marginTop: Spacing.md, borderRadius: Radius.lg, borderWidth: StyleSheet.hairlineWidth, paddingVertical: Spacing.md },
+  todayItem:    { flex: 1, alignItems: 'center', gap: 2 },
+  todayValue:   { fontSize: FontSize.h3, fontWeight: FontWeight.bold },
+  todayLabel:   { fontSize: FontSize.xs },
+  section:      { marginTop: Spacing.lg },
+  sectionHead:  { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, paddingHorizontal: Spacing.base, marginBottom: Spacing.xs },
+  sectionTitle: { fontSize: FontSize.h3, fontWeight: FontWeight.semibold },
+  countPill:    { borderRadius: Radius.full, paddingHorizontal: 8, paddingVertical: 2 },
+  countText:    { fontSize: FontSize.xs, fontWeight: FontWeight.bold },
 });

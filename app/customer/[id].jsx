@@ -10,6 +10,7 @@ import { useAuth } from '@context/auth';
 import { api } from '@utils/api';
 import EmptyState from '@components/EmptyState';
 import { FontSize, FontWeight, Spacing, Radius, Shadow } from '@constants/theme';
+import { friendlyError } from '@utils/errors';
 
 export default function CustomerProfile() {
   const { id } = useLocalSearchParams();
@@ -27,7 +28,7 @@ export default function CustomerProfile() {
       const res = await api.get(`/customers/${id}/profile`, token);
       setCustomer(res.data);
     } catch (e) {
-      setError(e.message ?? 'Could not load this profile');
+      setError(friendlyError(e, 'Could not load this profile') ?? 'Could not load this profile');
     } finally {
       setLoading(false);
     }
