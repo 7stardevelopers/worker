@@ -1,6 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert, Image, Linking, Platform, RefreshControl,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -19,6 +20,7 @@ import { whenLabel, needsCashCollection, OPEN_STATUSES } from '@utils/jobs';
 import { uploadToS3 } from '@utils/s3Upload';
 import { compressImage } from '@utils/image';
 import { startLocationTracking, stopLocationTracking, needsTracking } from '@utils/location';
+import { useCustomerCall } from '@utils/useCustomerCall';
 import StatusPill from '@components/StatusPill';
 import OTPVerifySheet from '@components/OTPVerifySheet';
 import Skeleton from '@components/Skeleton';
@@ -45,11 +47,14 @@ const TRANSITION_ACTIONS = {
   IN_PROGRESS: { next: 'COMPLETED',   label: 'Mark as Complete', icon: 'checkmark-circle-outline', colorKey: 'success', needsProof: true },
 };
 
-function QuickAction({ icon, label, onPress, Colors }) {
+function QuickAction({ icon, label, onPress, Colors, loading }) {
   return (
     <TouchableOpacity style={[styles.quick, { backgroundColor: Colors.primary + '12', borderColor: Colors.primary + '30' }]}
-      onPress={onPress} activeOpacity={0.8} accessibilityRole="button" accessibilityLabel={label}>
-      <Ionicons name={icon} size={18} color={Colors.primary} />
+      onPress={onPress} disabled={loading} activeOpacity={0.8} accessibilityRole="button" accessibilityLabel={label}
+      accessibilityState={{ busy: !!loading }}>
+      {loading
+        ? <ActivityIndicator size="small" color={Colors.primary} />
+        : <Ionicons name={icon} size={18} color={Colors.primary} />}
       <Text style={[styles.quickText, { color: Colors.primary }]}>{label}</Text>
     </TouchableOpacity>
   );
@@ -59,6 +64,7 @@ export default function JobDetailScreen() {
   const { id } = useLocalSearchParams();
   const { Colors } = useTheme();
   const { token } = useAuth();
+  const { calling, callCustomer } = useCustomerCall(id, token);
   const [job,           setJob]           = useState(null);
   const [loading,       setLoading]       = useState(true);
   const [loadError,     setLoadError]     = useState(null);
@@ -177,15 +183,6 @@ export default function JobDetailScreen() {
       router.back();
     } finally {
       setActionLoading(false);
-    }
-  };
-
-  const callCustomer = async () => {
-    try {
-      await api.post('/calls/initiate', { booking_id: id, target: 'customer' }, token);
-      Alert.alert('Calling…', 'Connecting you now — please answer the incoming call.');
-    } catch (e) {
-      alertError('Call failed', e, 'Please try again.');
     }
   };
 
@@ -338,7 +335,7 @@ export default function JobDetailScreen() {
           </TouchableOpacity>
           {isOpen && (
             <View style={styles.quickRow}>
-              <QuickAction icon="call-outline" label="Call" onPress={callCustomer} Colors={Colors} />
+              <QuickAction icon="call-outline" label={calling ? 'Calling…' : 'Call'} onPress={callCustomer} loading={calling} Colors={Colors} />
               <QuickAction icon="chatbubble-ellipses-outline" label="Chat" onPress={() => router.push({ pathname: '/chat/[id]', params: { id, name: job.customerName } })} Colors={Colors} />
               {hasCoords && <QuickAction icon="navigate-outline" label="Navigate" onPress={() => openNavigation(job.address.lat, job.address.lng)} Colors={Colors} />}
             </View>
