@@ -1,20 +1,15 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
 import { AppState } from 'react-native';
 import { router } from 'expo-router';
-import * as Location from 'expo-location';
 import * as Notifications from 'expo-notifications';
 import { api } from '@utils/api';
-import { reconcileTracking } from '@utils/location';
+import { reconcileTracking, hasTrackingPermission } from '@utils/location';
 import { useAuth } from '@context/auth';
 
 const ProviderContext = createContext({});
 
-async function hasFullLocationPermission() {
-  const fg = await Location.getForegroundPermissionsAsync();
-  if (fg.status !== 'granted') return false;
-  const bg = await Location.getBackgroundPermissionsAsync();
-  return bg.status === 'granted';
-}
+// Foreground-only in Expo Go (see IS_EXPO_GO in utils/location.js)
+const hasFullLocationPermission = hasTrackingPermission;
 
 export function ProviderProvider({ children }) {
   const { token } = useAuth();

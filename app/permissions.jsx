@@ -3,10 +3,10 @@ import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Linking, Platform
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import * as Location from 'expo-location';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useTheme } from '@context/theme';
 import { useProvider } from '@context/provider';
+import { requestTrackingPermission, IS_EXPO_GO } from '@utils/location';
 import { APP_NAME } from '@constants/brand';
 import { FontSize, FontWeight, Spacing, Radius } from '@constants/theme';
 
@@ -32,11 +32,8 @@ export default function PermissionsScreen() {
   const allow = async () => {
     setBusy(true);
     try {
-      const fg = await Location.requestForegroundPermissionsAsync();
-      if (fg.status !== 'granted') { setBlocked(!fg.canAskAgain); return; }
-      // Android 11+ sends the worker to Settings for "Allow all the time".
-      const bg = await Location.requestBackgroundPermissionsAsync();
-      if (bg.status !== 'granted') { setBlocked(!bg.canAskAgain); return; }
+      const { granted, blocked: isBlocked } = await requestTrackingPermission();
+      if (!granted) { setBlocked(isBlocked); return; }
       await refreshLocationPermission();
       if (then === 'online' && !isAvailable) await toggleAvailability();
       router.back();
@@ -72,7 +69,16 @@ export default function PermissionsScreen() {
           ))}
         </View>
 
-        {Platform.OS === 'android' && (
+        {IS_EXPO_GO && (
+          <View style={[styles.tip, { backgroundColor: Colors.warning + '12', borderColor: Colors.warning + '35' }]}>
+            <Ionicons name="flask-outline" size={18} color={Colors.warning} />
+            <Text style={[styles.tipText, { color: Colors.foreground }]}>
+              Testing in Expo Go: location is shared only while the app is open. Install a development build for background tracking.
+            </Text>
+          </View>
+        )}
+
+        {Platform.OS === 'android' && !IS_EXPO_GO && (
           <View style={[styles.tip, { backgroundColor: Colors.info + '12', borderColor: Colors.info + '35' }]}>
             <Ionicons name="information-circle-outline" size={18} color={Colors.info} />
             <Text style={[styles.tipText, { color: Colors.foreground }]}>
