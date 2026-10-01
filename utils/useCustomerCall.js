@@ -39,10 +39,14 @@ export function useCustomerCall(bookingId, token) {
       if (!mountedRef.current) return;
       try {
         const res = await api.get(`/calls/${callId}`, token);
+        console.log('[Call] status', callId, res?.data?.status);
         const copy = OUTCOME_COPY[res?.data?.status];
         if (copy) { Alert.alert(copy[0], copy[1]); return; }
         if (res?.data?.status === 'COMPLETED') return;
-      } catch { /* best-effort — never bother the worker about status checks */ }
+      } catch (e) {
+        // best-effort — never bother the worker about status checks
+        console.warn('[Call] status check failed', callId, e?.status, e?.message);
+      }
       if (Date.now() - startedAt < POLL_MAX_MS) pollRef.current = setTimeout(poll, POLL_MS);
     };
     pollRef.current = setTimeout(poll, POLL_MS);
@@ -54,13 +58,16 @@ export function useCustomerCall(bookingId, token) {
     setCalling(true);
     Haptics.selectionAsync().catch(() => {});
     try {
+      console.log('[Call] initiate →', { booking_id: bookingId, target: 'customer' });
       const res = await api.post('/calls/initiate', { booking_id: bookingId, target: 'customer' }, token);
+      console.log('[Call] initiate ✓', res?.data);
       Alert.alert(
         'Your phone will ring now',
         "Answer the incoming call and we'll connect you to the customer. Numbers stay private on both sides.",
       );
       if (res?.data?.call_id) followCall(res.data.call_id);
     } catch (e) {
+      console.warn('[Call] initiate failed', { status: e?.status, message: e?.message, booking_id: bookingId });
       const msg = friendlyError(e, "Couldn't connect the call. Please try again.");
       if (msg) Alert.alert('Call not placed', msg);
     } finally {
