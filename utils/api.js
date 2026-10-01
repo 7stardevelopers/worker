@@ -10,6 +10,11 @@ export const TOKEN_KEYS = {
 };
 
 let onTokenRefreshed = null;
+/** Latest stored access token (may be newer than a token captured in a closure). */
+export async function getAccessToken() {
+  try { return await AsyncStorage.getItem(TOKEN_KEYS.access); } catch { return null; }
+}
+
 export function setTokenRefreshCallback(cb) { onTokenRefreshed = cb; }
 
 let onSessionExpired = null;

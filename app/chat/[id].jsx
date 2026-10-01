@@ -9,7 +9,7 @@ import * as Haptics from 'expo-haptics';
 import { useLocalSearchParams, router } from 'expo-router';
 import { useTheme } from '@context/theme';
 import { useAuth } from '@context/auth';
-import { api } from '@utils/api';
+import { api, getAccessToken } from '@utils/api';
 import { alertError } from '@utils/errors';
 import { FontSize, FontWeight, Spacing, Radius } from '@constants/theme';
 
@@ -69,8 +69,11 @@ export default function ChatScreen() {
     if (!WSS_URL || !token) return undefined;
     let ws = null;
     let closed = false;
-    const connect = () => {
-      ws = new WebSocket(`${WSS_URL}?token=${token}`);
+    const connect = async () => {
+      // Use the latest stored token — the one captured here expires after 15 min.
+      const current = (await getAccessToken()) || token;
+      if (closed) return;
+      ws = new WebSocket(`${WSS_URL}?token=${current}`);
       ws.onopen = () => {
         setConnected(true);
         ws.send(JSON.stringify({ action: 'joinBooking', booking_id: id }));

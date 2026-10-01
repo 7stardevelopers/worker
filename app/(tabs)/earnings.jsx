@@ -35,8 +35,12 @@ export default function EarningsScreen() {
   const [loading,    setLoading]    = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [requesting, setRequesting] = useState(false);
+  // Balance minus payouts already requested — falls back to the raw wallet
+  // balance until /providers/me/earnings has loaded.
+  const [availableBalance, setAvailableBalance] = useState(null);
 
   const walletBalance = profile?.wallet_balance ?? 0;
+  const withdrawable  = availableBalance ?? walletBalance;
   const bankLast4     = (profile?.bank_account_number ?? '').slice(-4);
 
   const load = useCallback(async () => {
@@ -48,6 +52,8 @@ export default function EarningsScreen() {
       ]);
       const raw = Array.isArray(earningsRes?.data?.items) ? earningsRes.data.items : [];
       setEarnings(raw.map(normalizeEarning));
+      const available = Number(earningsRes?.data?.stats?.available_balance);
+      setAvailableBalance(Number.isFinite(available) ? available : null);
 
       // build 7-day chart data
       const today = new Date();
@@ -79,13 +85,17 @@ export default function EarningsScreen() {
   }, [load]);
 
   const handlePayoutRequest = () => {
-    if (walletBalance < MIN_PAYOUT) {
+    if (withdrawable < MIN_PAYOUT) {
+      if (walletBalance >= MIN_PAYOUT) {
+        Alert.alert('Payout Pending', 'Your earlier payout request is still being processed.');
+        return;
+      }
       Alert.alert('Minimum Payout', `Minimum payout amount is ${formatINR(MIN_PAYOUT)}`);
       return;
     }
     Alert.alert(
       'Request Payout',
-      `Request payout of ${formatINR(walletBalance)} to account ****${bankLast4}?`,
+      `Request payout of ${formatINR(withdrawable)} to account ****${bankLast4}?`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -94,9 +104,9 @@ export default function EarningsScreen() {
           onPress: async () => {
             setRequesting(true);
             try {
-              await api.post('/payments/payout-request', { amount: walletBalance }, token);
+              await api.post('/payments/payout-request', { amount: withdrawable }, token);
               Alert.alert('Payout Requested', 'Your payout will be processed within 2-3 business days.');
-              await fetchProfile();
+              await load();
             } catch (e) {
               alertError('Payout failed', e);
             } finally {
