@@ -9,6 +9,12 @@ import { useAuth } from '@context/auth';
 import { useProvider } from '@context/provider';
 import { FontSize, FontWeight, Spacing, Radius } from '@constants/theme';
 import { routeForProvider } from '@utils/onboarding';
+import { api } from '@utils/api';
+import { alertError } from '@utils/errors';
+
+// TEMPORARY (testing only) — remove together with backend
+// POST /providers/me/temp-approve once the test worker is approved.
+const TEMP_APPROVE_PHONE = '9390233299';
 
 export default function PendingScreen() {
   const { Colors } = useTheme();
@@ -52,6 +58,20 @@ export default function PendingScreen() {
   }, [refreshStatus]);
 
   const busy = checking || loading;
+
+  // TEMPORARY — see TEMP_APPROVE_PHONE
+  const canTempApprove = String(user?.phone ?? '').replace(/\D/g, '').endsWith(TEMP_APPROVE_PHONE);
+  const tempApprove = async () => {
+    setChecking(true);
+    try {
+      await api.post('/providers/me/temp-approve', {}, token);
+      await refreshStatus();
+    } catch (e) {
+      alertError('Approve failed', e);
+    } finally {
+      setChecking(false);
+    }
+  };
 
   return (
     <SafeAreaView style={[styles.root, { backgroundColor: Colors.background }]} edges={['top', 'bottom']}>
@@ -100,6 +120,14 @@ export default function PendingScreen() {
           </LinearGradient>
         </TouchableOpacity>
 
+        {canTempApprove && (
+          <TouchableOpacity onPress={tempApprove} disabled={busy} activeOpacity={0.8}
+            style={[styles.tempBtn, { borderColor: Colors.warning }]} accessibilityRole="button"
+            accessibilityLabel="Approve test account">
+            <Text style={[styles.tempText, { color: Colors.warning }]}>Approve test account (testing only)</Text>
+          </TouchableOpacity>
+        )}
+
         <TouchableOpacity
           onPress={() => Alert.alert('Log Out', 'Are you sure?', [
             { text: 'Cancel', style: 'cancel' },
@@ -128,4 +156,6 @@ const styles = StyleSheet.create({
   logoutText:  { fontSize: FontSize.sm, textDecorationLine: 'underline', paddingVertical: Spacing.sm },
   btnGrad:     { flex: 1, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: Spacing.sm },
   btnText:     { color: '#FFF', fontSize: FontSize.body, fontWeight: FontWeight.bold },
+  tempBtn:     { width: '100%', borderRadius: Radius.lg, borderWidth: 1, borderStyle: 'dashed', paddingVertical: Spacing.md, alignItems: 'center' },
+  tempText:    { fontSize: FontSize.sm, fontWeight: FontWeight.bold },
 });
