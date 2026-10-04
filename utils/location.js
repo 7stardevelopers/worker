@@ -15,26 +15,37 @@ export const LOCATION_TASK = 'WORKER_LOCATION_TASK';
 export const IS_EXPO_GO = Constants.executionEnvironment === 'storeClient';
 
 let foregroundSub = null;
+let currentMode = null; // 'fast' | 'normal' — options the running task was started with
+
+// EN_ROUTE streams fast so the customer's pin glides like a ride app; otherwise
+// (pre-job window, on the job) a slower cadence saves battery.
+const MODES = {
+  fast:   { timeInterval: 3000,  distanceInterval: 5 },
+  normal: { timeInterval: 10000, distanceInterval: 10 },
+};
 
 // Statuses during which the customer is watching the worker on the map.
 const LIVE_STATUSES = ['EN_ROUTE', 'IN_PROGRESS'];
 // An accepted job starts sharing location this close to its slot.
 const PRE_JOB_WINDOW_MIN = 60;
 
+// Fixes worse than this are skipped (indoor/cold-start GPS can be off by
+// hundreds of metres) — unless nothing has been sent for MAX_SILENCE_MS, so a
+// worker with poor reception still shows up on the customer's map.
+const MAX_ACCURACY_M = 100;
+const MAX_SILENCE_MS = 60000;
+let lastSentAt = 0;
+
 TaskManager.defineTask(LOCATION_TASK, async ({ data, error }) => {
   if (error) {
     console.warn('[Location] Task error:', error.message);
     return;
   }
-  const loc = data?.locations?.[0];
+  // Android can deliver a batch; the last entry is the newest fix.
+  const locs = data?.locations;
+  const loc = locs?.[locs.length - 1];
   if (!loc) return;
-  try {
-    // Goes through api.js so an expired access token is refreshed instead of
-    // every update failing with 401 once the app has been backgrounded > 15 min.
-    await api.patch('/providers/me/location', { lat: loc.coords.latitude, lng: loc.coords.longitude });
-  } catch (e) {
-    console.warn('[Location] update failed (non-fatal):', e.message);
-  }
+  await sendLocation(loc);
 });
 
 /** True when the permissions this build needs are granted (foreground only in Expo Go). */
@@ -60,9 +71,24 @@ export async function requestTrackingPermission() {
   return { granted: true, blocked: false };
 }
 
-async function sendLocation(coords) {
+async function sendLocation(loc) {
+  const { coords } = loc;
+  const inaccurate = coords.accuracy != null && coords.accuracy > MAX_ACCURACY_M;
+  if (inaccurate && Date.now() - lastSentAt < MAX_SILENCE_MS) return;
   try {
-    await api.patch('/providers/me/location', { lat: coords.latitude, lng: coords.longitude });
+    // Goes through api.js so an expired access token is refreshed instead of
+    // every update failing with 401 once the app has been backgrounded > 15 min.
+    // heading/speed let the customer's map rotate the pin; mocked (Android) is
+    // rejected server-side in production.
+    await api.patch('/providers/me/location', {
+      lat: coords.latitude,
+      lng: coords.longitude,
+      heading: coords.heading ?? null,
+      speed: coords.speed ?? null,
+      accuracy: coords.accuracy ?? null,
+      mocked: !!loc.mocked,
+    });
+    lastSentAt = Date.now();
   } catch (e) {
     console.warn('[Location] update failed (non-fatal):', e.message);
   }
@@ -72,40 +98,56 @@ async function sendLocation(coords) {
  * Starts background location sharing. Without permission, `silent` just
  * returns false (used when resuming after an app restart); otherwise the
  * worker is sent to the permission explainer (app/permissions.jsx) — the OS
- * prompt is only ever shown from there.
+ * prompt is only ever shown from there. `enRoute` selects the fast cadence;
+ * a running task with the other cadence is restarted. `keepFast` never slows an
+ * already-fast task (a screen for one job mustn't throttle another job's trip).
  */
-export async function startLocationTracking({ silent = false } = {}) {
+export async function startLocationTracking({ silent = false, enRoute = false, keepFast = false } = {}) {
   if (!(await hasTrackingPermission())) {
     if (!silent) router.push('/permissions');
     return false;
   }
+  const mode = enRoute || (keepFast && currentMode === 'fast') ? 'fast' : 'normal';
 
   if (IS_EXPO_GO) {
-    if (foregroundSub) return true;
+    if (foregroundSub && currentMode === mode) return true;
+    foregroundSub?.remove();
     foregroundSub = await Location.watchPositionAsync(
-      { accuracy: Location.Accuracy.High, timeInterval: 10000, distanceInterval: 10 },
-      loc => sendLocation(loc.coords),
+      { accuracy: Location.Accuracy.High, ...MODES[mode] },
+      sendLocation,
     );
+    currentMode = mode;
     return true;
   }
 
   const isRunning = await Location.hasStartedLocationUpdatesAsync(LOCATION_TASK).catch(() => false);
-  if (isRunning) return true;
+  // currentMode is null after an app restart — restart the task so it uses the right cadence.
+  if (isRunning && currentMode === mode) return true;
+  if (isRunning) await Location.stopLocationUpdatesAsync(LOCATION_TASK).catch(() => {});
 
   await Location.startLocationUpdatesAsync(LOCATION_TASK, {
     accuracy: Location.Accuracy.High,
-    timeInterval: 10000,
-    distanceInterval: 10,
+    ...MODES[mode],
+    // iOS: keep sending while driving instead of letting the OS pause "idle" updates.
+    activityType: Location.ActivityType.AutomotiveNavigation,
+    pausesUpdatesAutomatically: false,
     showsBackgroundLocationIndicator: true,
     foregroundService: {
       notificationTitle: APP_NAME,
       notificationBody: 'Sharing your location with the customer.',
+      // Keep sharing after the worker swipes the app away (Android) so the
+      // customer doesn't see a frozen pin mid-trip. The task stops itself via
+      // reconcileTracking / stopLocationTracking once no job needs it; iOS
+      // still stops on force-quit.
+      killServiceOnDestroy: false,
     },
   });
+  currentMode = mode;
   return true;
 }
 
 export async function stopLocationTracking() {
+  currentMode = null;
   if (foregroundSub) {
     foregroundSub.remove();
     foregroundSub = null;
@@ -133,7 +175,9 @@ export async function reconcileTracking(token) {
   try {
     const res = await api.get('/bookings', token);
     const jobs = Array.isArray(res.data) ? res.data : [];
-    if (jobs.some(needsTracking)) await startLocationTracking({ silent: true });
+    if (jobs.some(needsTracking)) {
+      await startLocationTracking({ silent: true, enRoute: jobs.some(j => j.status === 'EN_ROUTE') });
+    }
     else await stopLocationTracking();
   } catch (e) {
     console.warn('[Location] reconcile failed (non-fatal):', e.message);

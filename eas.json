@@ -9,7 +9,7 @@
       "distribution": "internal",
       "env": {
         "EXPO_PUBLIC_API_BASE_URL": "https://g61ebs8u40.execute-api.ap-south-1.amazonaws.com/Prod",
-        "EXPO_PUBLIC_WSS_URL": "wss://jkf4402z39.execute-api.ap-south-1.amazonaws.com/production"
+        "EXPO_PUBLIC_WSS_URL": "wss://dndipnu4hj.execute-api.ap-south-1.amazonaws.com/production"
       }
     },
     "preview": {
@@ -19,7 +19,7 @@
       "distribution": "internal",
       "env": {
         "EXPO_PUBLIC_API_BASE_URL": "https://g61ebs8u40.execute-api.ap-south-1.amazonaws.com/Prod",
-        "EXPO_PUBLIC_WSS_URL": "wss://jkf4402z39.execute-api.ap-south-1.amazonaws.com/production"
+        "EXPO_PUBLIC_WSS_URL": "wss://dndipnu4hj.execute-api.ap-south-1.amazonaws.com/production"
       }
     },
     "production": {

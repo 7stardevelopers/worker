@@ -5,7 +5,7 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import * as Notifications from 'expo-notifications';
+import Notifications from '@utils/notifications';
 import { router } from 'expo-router';
 import { AuthProvider } from '@context/auth';
 import { ThemeProvider, useTheme } from '@context/theme';
@@ -14,7 +14,7 @@ import SplashOverlay from '@components/Splash';
 import OfflineBanner from '@components/OfflineBanner';
 import '@utils/location';
 
-Notifications.setNotificationHandler({
+Notifications?.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowBanner: true,
     shouldShowList:   true,
@@ -25,7 +25,7 @@ Notifications.setNotificationHandler({
 
 // Backend pushes carry no channelId, so Android delivers them on "default".
 // Make that channel urgent — a job request must ring and pop up as heads-up.
-if (Platform.OS === 'android') {
+if (Notifications && Platform.OS === 'android') {
   Notifications.setNotificationChannelAsync('default', {
     name: 'Job alerts',
     importance: Notifications.AndroidImportance.MAX,
@@ -40,6 +40,7 @@ function AppContent() {
   const { isDark } = useTheme();
 
   useEffect(() => {
+    if (!Notifications) return;
     const sub = Notifications.addNotificationResponseReceivedListener(response => {
       const data = response.notification.request.content.data ?? {};
       if (data.type === 'provider_approved' || data.type === 'account_approved') {

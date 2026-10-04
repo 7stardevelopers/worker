@@ -93,6 +93,9 @@ Throws `Error(message)` with `.status` on non-2xx. Base URL from `process.env.EX
 - Unrecoverable 401 throws `SESSION_EXPIRED` and fires the session-expired callback once.
 - 20 s timeout; non-JSON bodies (e.g. API Gateway 413) don't crash the caller.
 - Show errors with `alertError()` / `friendlyError()` from `utils/errors.js`, never raw `e.message`.
+- Every attempt is dev-logged by `logApi()` (`utils/apiLog.js`): `✅/❌ status METHOD path (ms)` plus the
+  redacted payload/response, in the Metro terminal and DevTools console. Full raw requests are in the
+  React Native DevTools **Network** tab (`j` in the Expo terminal). Nothing is logged in release builds.
 
 ### Data Normalization (`utils/normalize.js`)
 

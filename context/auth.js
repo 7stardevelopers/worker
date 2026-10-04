@@ -1,8 +1,8 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as Notifications from 'expo-notifications';
 import Constants from 'expo-constants';
+import Notifications, { NOTIFICATIONS_SUPPORTED } from '@utils/notifications';
 import { router } from 'expo-router';
 import { api, TOKEN_KEYS, setTokenRefreshCallback, setSessionExpiredCallback } from '@utils/api';
 import { stopLocationTracking } from '@utils/location';
@@ -11,7 +11,7 @@ const PUSH_TOKEN_KEY = 'push_token';
 const SESSION_KEYS = [TOKEN_KEYS.access, TOKEN_KEYS.refresh, TOKEN_KEYS.user];
 
 // Remote push isn't available in Expo Go (SDK 53+) — skip instead of prompting.
-const PUSH_SUPPORTED = Constants.executionEnvironment !== 'storeClient';
+const PUSH_SUPPORTED = NOTIFICATIONS_SUPPORTED;
 
 const AuthContext = createContext({});
 

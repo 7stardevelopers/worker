@@ -12,8 +12,8 @@ import { FontSize, FontWeight, Spacing, Radius } from '@constants/theme';
 
 const REASONS = [
   { icon: 'navigate-outline',      title: 'Show customers you\'re on the way', body: 'Your live position appears on the customer\'s map while you travel to them and while you work.' },
-  { icon: 'briefcase-outline',     title: 'Keep tracking during a job',        body: 'Location keeps updating in the background — even with the app closed or Maps open — but only while you have an active job.' },
-  { icon: 'shield-checkmark-outline', title: 'Stops when the job ends',      body: 'Tracking stops automatically when the job is completed or cancelled, or when you log out.' },
+  { icon: 'briefcase-outline',     title: 'Keep tracking during a job',        body: 'Location keeps updating in the background — even with Maps open — but only while you have an active job.' },
+  { icon: 'shield-checkmark-outline', title: 'Stops when the job ends',      body: 'Tracking stops automatically when the job is completed or cancelled, when you log out, or when you fully close the app.' },
 ];
 
 /**

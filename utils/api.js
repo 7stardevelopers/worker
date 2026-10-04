@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { logApi } from '@utils/apiLog';
 
 const BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
 const REQUEST_TIMEOUT_MS = 20000;
@@ -67,12 +68,15 @@ export function refreshSession() {
     try {
       const refreshToken = await AsyncStorage.getItem(TOKEN_KEYS.refresh);
       if (!refreshToken) return null;
+      const started = Date.now();
       const res = await fetchWithTimeout(`${BASE_URL}/auth/refresh`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ refresh_token: refreshToken }),
       });
       const data = await readJson(res);
+      // Status only — the body is nothing but tokens.
+      logApi({ method: 'POST', path: '/auth/refresh', status: res.status, ms: Date.now() - started, tag: 'silent refresh' });
       if (!res.ok) return null;
       const access = data?.data?.access_token;
       const refresh = data?.data?.refresh_token;
@@ -101,6 +105,21 @@ function send(method, path, body, accessToken) {
   });
 }
 
+// send + parse + dev log, so every attempt (including the post-refresh retry) is logged.
+async function call(method, path, body, accessToken, tag) {
+  const started = Date.now();
+  let res;
+  try {
+    res = await send(method, path, body, accessToken);
+  } catch (e) {
+    logApi({ method, path, status: 0, ms: Date.now() - started, body, error: e.message, tag });
+    throw e;
+  }
+  const data = await readJson(res);
+  logApi({ method, path, status: res.status, ms: Date.now() - started, body, data, tag });
+  return { res, data };
+}
+
 function errorMessage(res, data) {
   if (res.status === 413) return 'File is too large to upload. Please try a smaller photo.';
   return data?.message || data?.error;
@@ -114,8 +133,7 @@ async function request(method, path, body, token) {
   const accessToken = stored || token;
   if (accessToken) sessionExpiredNotified = false;
 
-  const res = await send(method, path, body, accessToken);
-  const data = await readJson(res);
+  const { res, data } = await call(method, path, body, accessToken);
 
   // Only an authenticated 401 means the session expired — an unauthenticated one
   // (e.g. wrong OTP) is just an error for the screen.
@@ -128,8 +146,7 @@ async function request(method, path, body, token) {
       notifySessionExpired();
       throw apiError('SESSION_EXPIRED', 401);
     }
-    const res2 = await send(method, path, body, newToken);
-    const data2 = await readJson(res2);
+    const { res: res2, data: data2 } = await call(method, path, body, newToken, 'retry');
     if (res2.status === 401) { notifySessionExpired(); throw apiError('SESSION_EXPIRED', 401); }
     if (!res2.ok) throw apiError(errorMessage(res2, data2), res2.status);
     return data2;

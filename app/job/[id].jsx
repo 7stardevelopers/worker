@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert, Image, Linking, Platform, RefreshControl,
   ActivityIndicator,
@@ -19,7 +19,7 @@ import { formatINR } from '@utils/money';
 import { whenLabel, needsCashCollection, OPEN_STATUSES } from '@utils/jobs';
 import { uploadToS3 } from '@utils/s3Upload';
 import { compressImage } from '@utils/image';
-import { startLocationTracking, stopLocationTracking, needsTracking } from '@utils/location';
+import { startLocationTracking, stopLocationTracking, needsTracking, reconcileTracking } from '@utils/location';
 import { useCustomerCall } from '@utils/useCustomerCall';
 import StatusPill from '@components/StatusPill';
 import OTPVerifySheet from '@components/OTPVerifySheet';
@@ -74,6 +74,18 @@ export default function JobDetailScreen() {
   const [otpError,      setOtpError]      = useState('');
   const [proofUris,     setProofUris]     = useState([]);
   const [helpLoading,   setHelpLoading]   = useState(false);
+  // Road distance/ETA from the backend — the same cached value the customer sees.
+  const [eta,           setEta]           = useState(null);
+
+  const fetchEta = useCallback(async () => {
+    if (!token || !id) return;
+    try {
+      const res = await api.get(`/bookings/${id}/eta`, token);
+      setEta(res.data?.distance_km != null ? res.data : null);
+    } catch {
+      // Non-fatal: the card just hides the distance line.
+    }
+  }, [id, token]);
 
   const fetchJob = useCallback(async () => {
     if (!token || !id) return;
@@ -84,7 +96,7 @@ export default function JobDetailScreen() {
       setLoadError(null);
       // Keep GPS in step with the job — it may have been cancelled by the
       // customer/admin since the last fetch.
-      if (needsTracking({ status: j.status, scheduled_at: j.scheduledAt })) startLocationTracking({ silent: true }).catch(() => {});
+      if (needsTracking({ status: j.status, scheduled_at: j.scheduledAt })) startLocationTracking({ silent: true, enRoute: j.status === 'EN_ROUTE', keepFast: true }).catch(() => {});
       else if (['CANCELLED', 'REJECTED', 'COMPLETED'].includes(j.status)) stopLocationTracking().catch(() => {});
     } catch (e) {
       setLoadError(e);
@@ -98,9 +110,17 @@ export default function JobDetailScreen() {
     }, [fetchJob])
   );
 
+  const showEta = job?.status === 'ACCEPTED' || job?.status === 'EN_ROUTE';
+  useEffect(() => {
+    if (!showEta) { setEta(null); return undefined; }
+    fetchEta();
+    const t = setInterval(fetchEta, 30000);
+    return () => clearInterval(t);
+  }, [showEta, fetchEta]);
+
   const onRefresh = async () => {
     setRefreshing(true);
-    await fetchJob();
+    await Promise.all([fetchJob(), showEta ? fetchEta() : null]);
     setRefreshing(false);
   };
 
@@ -110,7 +130,7 @@ export default function JobDetailScreen() {
       await api.patch(`/bookings/${id}/status`, { status: nextStatus }, token);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       if (nextStatus === 'EN_ROUTE') {
-        await startLocationTracking().catch(() => {});
+        await startLocationTracking({ enRoute: true }).catch(() => {});
         openNavigation(job?.address?.lat, job?.address?.lng);
       }
       await fetchJob();
@@ -128,6 +148,8 @@ export default function JobDetailScreen() {
       await api.post(`/bookings/${id}/otp-verify`, { otp: code }, token);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       setShowOtpSheet(false);
+      // Arrived: drop back to the slower cadence unless another job is still en route.
+      reconcileTracking(token).catch(() => {});
       await fetchJob();
     } catch (e) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
@@ -349,6 +371,14 @@ export default function JobDetailScreen() {
             <Ionicons name="location-outline" size={14} color={Colors.primary} />
             <Text style={[styles.metaText, { color: Colors.foreground }]}>{job.address.fullAddress}</Text>
           </View>
+          {showEta && eta && (
+            <View style={styles.metaRow}>
+              <Ionicons name="car-outline" size={14} color={Colors.mutedForeground} />
+              <Text style={[styles.metaText, { color: Colors.mutedForeground }]}>
+                {eta.distance_km.toFixed(1)} km by road • ~{eta.duration_min} min
+              </Text>
+            </View>
+          )}
         </View>
 
         {/* Proof photos */}

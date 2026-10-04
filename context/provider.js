@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
 import { AppState } from 'react-native';
 import { router } from 'expo-router';
-import * as Notifications from 'expo-notifications';
+import Notifications from '@utils/notifications';
 import { api } from '@utils/api';
 import { reconcileTracking, hasTrackingPermission } from '@utils/location';
 import { useAuth } from '@context/auth';
@@ -77,7 +77,7 @@ export function ProviderProvider({ children }) {
           console.warn('[Provider] location-revoked report failed:', e.message);
         }
         try {
-          await Notifications.scheduleNotificationAsync({
+          await Notifications?.scheduleNotificationAsync({
             content: {
               title: 'You are now offline',
               body: 'Location access was turned off, so we stopped sharing your position with customers.',

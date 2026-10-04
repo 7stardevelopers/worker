@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState } from 'react-native';
-import * as Notifications from 'expo-notifications';
+import Notifications from '@utils/notifications';
 import { api } from '@utils/api';
 import { normalizeJob } from '@utils/normalize';
 
@@ -76,6 +76,7 @@ export default function useJobFeed({ token, isAvailable, onNewRequest }) {
   }, [isAvailable, token, refresh]);
 
   useEffect(() => {
+    if (!Notifications) return;
     const sub = Notifications.addNotificationReceivedListener(n => {
       if (n.request.content.data?.type === 'job_available') refresh();
     });
