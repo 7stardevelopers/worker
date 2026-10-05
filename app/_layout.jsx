@@ -6,6 +6,7 @@ import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import Notifications from '@utils/notifications';
+import { isViewingChat } from '@utils/chatPresence';
 import { router } from 'expo-router';
 import { AuthProvider } from '@context/auth';
 import { ThemeProvider, useTheme } from '@context/theme';
@@ -15,12 +16,17 @@ import OfflineBanner from '@components/OfflineBanner';
 import '@utils/location';
 
 Notifications?.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowBanner: true,
-    shouldShowList:   true,
-    shouldPlaySound:  true,
-    shouldSetBadge:   true,
-  }),
+  // Hide a chat push for the chat that's already on screen.
+  handleNotification: async (notification) => {
+    const data = notification?.request?.content?.data ?? {};
+    const hide = data.type === 'new_message' && isViewingChat(data.booking_id);
+    return {
+      shouldShowBanner: !hide,
+      shouldShowList:   !hide,
+      shouldPlaySound:  !hide,
+      shouldSetBadge:   !hide,
+    };
+  },
 });
 
 // Backend pushes carry no channelId, so Android delivers them on "default".
@@ -47,6 +53,8 @@ function AppContent() {
         router.replace('/'); // re-run the auth gate → straight into the app (or the photo retake)
       } else if (data.type === 'support_reply' && data.ticket_id) {
         router.push(`/support/${data.ticket_id}`);
+      } else if (data.type === 'new_message' && data.booking_id) {
+        router.push({ pathname: '/chat/[id]', params: { id: data.booking_id } });
       } else if (data.booking_id) {
         // New job requests open on the job itself, where the worker can accept.
         router.push(`/job/${data.booking_id}`);
