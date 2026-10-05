@@ -1,6 +1,6 @@
 import React, { useCallback } from 'react';
 import {
-  View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert, RefreshControl, Switch,
+  View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert, RefreshControl, Switch, Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -45,6 +45,8 @@ export default function ProfileScreen() {
   const { Colors, isDark, toggleTheme } = useTheme();
   const { user, logout } = useAuth();
   const { profile, fetchProfile, loading, locationOk } = useProvider();
+  // The fresh profile wins (null after an admin reset); the cached login user is only a fallback.
+  const photoUrl = profile ? profile.photo_url ?? null : user?.photo_url ?? null;
   const [refreshing, setRefreshing] = React.useState(false);
 
   useFocusEffect(
@@ -85,14 +87,29 @@ export default function ProfileScreen() {
         {/* Avatar card */}
         <View style={[styles.avatarCard, { backgroundColor: Colors.surface, borderColor: Colors.border }, Shadow.md]}>
           <LinearGradient colors={['rgba(99,102,241,0.12)', 'transparent']} style={StyleSheet.absoluteFill} />
-          <View style={[styles.avatar, { backgroundColor: Colors.primary + '25' }]}>
-            <Text style={[styles.avatarText, { color: Colors.primary }]}>
-              {(user?.name ?? 'P').charAt(0).toUpperCase()}
-            </Text>
+          {/* Registration selfie — locked; only an admin reset allows a new one. */}
+          <View style={styles.avatarWrap}>
+            {photoUrl ? (
+              <Image source={{ uri: photoUrl }} style={styles.avatar} accessibilityLabel="Your profile photo" />
+            ) : (
+              <View style={[styles.avatar, { backgroundColor: Colors.primary + '25' }]}>
+                <Text style={[styles.avatarText, { color: Colors.primary }]}>
+                  {(user?.name ?? 'P').charAt(0).toUpperCase()}
+                </Text>
+              </View>
+            )}
+            {photoUrl && (
+              <View style={[styles.lockBadge, { backgroundColor: Colors.surface, borderColor: Colors.border }]}>
+                <Ionicons name="lock-closed" size={11} color={Colors.mutedForeground} />
+              </View>
+            )}
           </View>
           <View style={styles.avatarInfo}>
             <Text style={[styles.name, { color: Colors.foreground }]}>{user?.name ?? 'Provider'}</Text>
             <Text style={[styles.phone, { color: Colors.mutedForeground }]}>+91 {user?.phone ?? ''}</Text>
+            {photoUrl && (
+              <Text style={[styles.lockCaption, { color: Colors.subtleForeground }]}>Photo locked · contact support to change</Text>
+            )}
             <View style={[styles.statusBadge, { backgroundColor: statusColor + '18', borderColor: statusColor + '40' }]}>
               <View style={[styles.statusDot, { backgroundColor: statusColor }]} />
               <Text style={[styles.statusText, { color: statusColor }]}>
@@ -149,7 +166,10 @@ const styles = StyleSheet.create({
   header:      { paddingHorizontal: Spacing.base, paddingVertical: Spacing.md },
   title:       { fontSize: FontSize.h1, fontWeight: FontWeight.bold },
   avatarCard:  { marginHorizontal: Spacing.base, borderRadius: Radius.xl, borderWidth: StyleSheet.hairlineWidth, padding: Spacing.base, flexDirection: 'row', alignItems: 'center', gap: Spacing.base, overflow: 'hidden' },
+  avatarWrap:  { width: 72, height: 72 },
   avatar:      { width: 72, height: 72, borderRadius: 36, justifyContent: 'center', alignItems: 'center' },
+  lockBadge:   { position: 'absolute', right: -2, bottom: -2, width: 24, height: 24, borderRadius: 12, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  lockCaption: { fontSize: FontSize.xs },
   avatarText:  { fontSize: FontSize.display, fontWeight: FontWeight.bold },
   avatarInfo:  { flex: 1, gap: 4 },
   name:        { fontSize: FontSize.h2, fontWeight: FontWeight.bold },

@@ -42,7 +42,7 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "Allow MULTIOKS Partner to access your camera for proof of job completion."
+          "cameraPermission": "Allow MULTIOKS Partner to access your camera for your profile photo and proof of job completion."
         }
       ],
       [

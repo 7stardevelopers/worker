@@ -13,7 +13,7 @@ import { FontSize, FontWeight, Spacing, Radius } from '@constants/theme';
 import { alertError } from '@utils/errors';
 import { api } from '@utils/api';
 
-const STEPS = ['Personal', 'Services', 'Documents', 'Bank', 'Availability'];
+const STEPS = ['Personal', 'Services', 'Documents', 'Bank', 'Availability', 'Photo'];
 
 export default function PersonalScreen() {
   const { Colors } = useTheme();

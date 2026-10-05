@@ -45,11 +45,8 @@ export default function AvailabilityScreen() {
     } finally {
       setSaving(false);
     }
-    Alert.alert(
-      'Application Submitted!',
-      "Your profile is under review. You'll be notified within 24 hours once approved.",
-      [{ text: 'OK', onPress: () => router.replace('/') }]
-    );
+    // Last step is the camera selfie — saving it submits the application.
+    router.push('/onboarding/photo');
   };
 
   return (
@@ -115,8 +112,8 @@ export default function AvailabilityScreen() {
           activeOpacity={0.85}
         >
           <LinearGradient colors={Colors.gradientPrimary} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.submitGrad}>
-            <Ionicons name="checkmark-circle-outline" size={20} color="#FFF" />
-            <Text style={styles.submitText}>{saving ? 'Submitting...' : 'Submit Application'}</Text>
+            <Text style={styles.submitText}>{saving ? 'Saving...' : 'Next: Profile photo'}</Text>
+            <Ionicons name="arrow-forward" size={18} color="#FFF" />
           </LinearGradient>
         </TouchableOpacity>
       </View>

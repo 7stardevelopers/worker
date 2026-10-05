@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 import { api } from '@utils/api';
 
-export const STEP_ORDER = ['personal', 'services', 'documents', 'bank', 'availability'];
+export const STEP_ORDER = ['personal', 'services', 'documents', 'bank', 'availability', 'photo'];
 export const REQUIRED_DOCS = ['AADHAAR_FRONT', 'AADHAAR_BACK', 'PAN'];
 
 /** Uploaded documents keyed by doc_type, e.g. { PAN: { status: 'PENDING', ... } }. */
@@ -23,13 +23,16 @@ export async function getNextOnboardingStep(profile, user, token) {
   const docsOk = REQUIRED_DOCS.every(t => docs[t] && docs[t].status !== 'REJECTED');
   if (!docsOk) return 'documents';
   if (!profile?.bank_account_number) return 'bank';
+  // Camera selfie (locked profile photo) is the step that submits the application.
+  if (!profile?.photo_url) return 'photo';
   return null;
 }
 
 /** Where a signed-in worker belongs, based on their provider record. */
 export async function routeForProvider(profile, user, token) {
-  if (profile.status === 'APPROVED') return '/(tabs)';
   if (profile.status === 'SUSPENDED') return '/suspended';
+  // Workers approved before the selfie existed, or whose photo admin reset, take one first.
+  if (profile.status === 'APPROVED') return profile.photo_url ? '/(tabs)' : '/onboarding/photo?mode=required';
   const step = await getNextOnboardingStep(profile, user, token);
   return step ? `/onboarding/${step}` : '/pending';
 }

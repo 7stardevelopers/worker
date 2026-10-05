@@ -8,6 +8,7 @@ export default function OnboardingLayout() {
       <Stack.Screen name="documents"    options={{ animation: 'slide_from_right' }} />
       <Stack.Screen name="bank"         options={{ animation: 'slide_from_right' }} />
       <Stack.Screen name="availability" options={{ animation: 'slide_from_right' }} />
+      <Stack.Screen name="photo"        options={{ animation: 'slide_from_right', gestureEnabled: false }} />
     </Stack>
   );
 }

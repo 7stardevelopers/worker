@@ -43,8 +43,8 @@ function AppContent() {
     if (!Notifications) return;
     const sub = Notifications.addNotificationResponseReceivedListener(response => {
       const data = response.notification.request.content.data ?? {};
-      if (data.type === 'provider_approved' || data.type === 'account_approved') {
-        router.replace('/'); // re-run the auth gate → straight into the app
+      if (data.type === 'provider_approved' || data.type === 'account_approved' || data.type === 'photo_reset') {
+        router.replace('/'); // re-run the auth gate → straight into the app (or the photo retake)
       } else if (data.type === 'support_reply' && data.ticket_id) {
         router.push(`/support/${data.ticket_id}`);
       } else if (data.booking_id) {
