@@ -96,7 +96,7 @@ export default function JobDetailScreen() {
       setLoadError(null);
       // Keep GPS in step with the job — it may have been cancelled by the
       // customer/admin since the last fetch.
-      if (needsTracking({ status: j.status, scheduled_at: j.scheduledAt })) startLocationTracking({ silent: true, enRoute: j.status === 'EN_ROUTE', keepFast: true }).catch(() => {});
+      if (needsTracking({ status: j.status, scheduled_at: j.scheduledAt, providerDoneAt: j.providerDoneAt })) startLocationTracking({ silent: true, enRoute: j.status === 'EN_ROUTE', keepFast: true }).catch(() => {});
       else if (['CANCELLED', 'REJECTED', 'COMPLETED'].includes(j.status)) stopLocationTracking().catch(() => {});
     } catch (e) {
       setLoadError(e);
@@ -184,7 +184,8 @@ export default function JobDetailScreen() {
       }
       await api.post(`/bookings/${id}/complete`, { proof_photos: uploadedUrls }, token);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-      await stopLocationTracking().catch(() => {});
+      // Done on our side → free for the next job; GPS only if another job needs it.
+      await reconcileTracking(token).catch(() => {});
       setProofUris([]);
       await fetchJob();
     } catch (e) {
@@ -229,7 +230,12 @@ export default function JobDetailScreen() {
     }
   };
 
-  const action = TRANSITION_ACTIONS[job?.status];
+  // Once the worker has tapped Done, the job waits for the customer — no action left here.
+  const waitingForCustomer = job?.status === 'IN_PROGRESS' && !!job?.providerDoneAt;
+  const baseAction = waitingForCustomer ? null : TRANSITION_ACTIONS[job?.status];
+  const action = baseAction && job?.status === 'IN_PROGRESS' && job?.customerDoneAt
+    ? { ...baseAction, label: 'Customer confirmed — Mark as Complete' }
+    : baseAction;
   const handleAction = () => {
     if (!action) return;
     if (action.isAccept)     { handleAcceptJob(); return; }
@@ -381,8 +387,34 @@ export default function JobDetailScreen() {
           )}
         </View>
 
+        {/* Two-sided completion status */}
+        {job.status === 'IN_PROGRESS' && (job.disputedAt || waitingForCustomer || job.customerDoneAt) && (
+          <View style={[styles.card, styles.doneCard, {
+            backgroundColor: (job.disputedAt ? Colors.error : waitingForCustomer ? Colors.warning : Colors.success) + '14',
+            borderColor:     (job.disputedAt ? Colors.error : waitingForCustomer ? Colors.warning : Colors.success) + '55',
+          }]}>
+            <Ionicons
+              name={job.disputedAt ? 'alert-circle-outline' : waitingForCustomer ? 'hourglass-outline' : 'checkmark-done-outline'}
+              size={22}
+              color={job.disputedAt ? Colors.error : waitingForCustomer ? Colors.warning : Colors.success}
+            />
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.doneTitle, { color: Colors.foreground }]}>
+                {job.disputedAt ? 'Customer reported a problem'
+                  : waitingForCustomer ? 'Waiting for the customer to confirm'
+                  : 'Customer confirmed the work is done'}
+              </Text>
+              <Text style={[styles.doneSub, { color: Colors.mutedForeground }]}>
+                {job.disputedAt ? 'Support will contact you about this job.'
+                  : waitingForCustomer ? "The job completes when the customer taps \"Work done\" in their app. You're free to take your next job."
+                  : 'Add proof photos and tap Mark as Complete to finish.'}
+              </Text>
+            </View>
+          </View>
+        )}
+
         {/* Proof photos */}
-        {job.status === 'IN_PROGRESS' && (
+        {job.status === 'IN_PROGRESS' && !waitingForCustomer && (
           <View style={[styles.card, { backgroundColor: Colors.surface, borderColor: Colors.border }]}>
             <Text style={[styles.cardTitle, { color: Colors.mutedForeground }]}>PROOF PHOTOS</Text>
             <View style={styles.proofRow}>
@@ -407,7 +439,7 @@ export default function JobDetailScreen() {
             </Text>
           </View>
         )}
-        {job.status === 'COMPLETED' && job.proofPhotos.length > 0 && (
+        {(job.status === 'COMPLETED' || waitingForCustomer) && job.proofPhotos.length > 0 && (
           <View style={[styles.card, { backgroundColor: Colors.surface, borderColor: Colors.border }]}>
             <Text style={[styles.cardTitle, { color: Colors.mutedForeground }]}>PROOF PHOTOS</Text>
             <View style={styles.proofRow}>
@@ -496,6 +528,9 @@ const styles = StyleSheet.create({
   proofThumb:    { width: 80, height: 80, borderRadius: Radius.md, borderWidth: 1 },
   proofAdd:      { width: 80, height: 80, borderRadius: Radius.md, borderWidth: 1, borderStyle: 'dashed', justifyContent: 'center', alignItems: 'center' },
   proofHint:     { fontSize: FontSize.xs },
+  doneCard:      { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.md },
+  doneTitle:     { fontSize: FontSize.body, fontWeight: FontWeight.semibold },
+  doneSub:       { fontSize: FontSize.sm, marginTop: 2, lineHeight: 18 },
   helpRow:       { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: Spacing.md },
   helpText:      { fontSize: FontSize.sm, fontWeight: FontWeight.medium },
   actionBar:     { position: 'absolute', bottom: 0, left: 0, right: 0, padding: Spacing.base, paddingBottom: 36, borderTopWidth: StyleSheet.hairlineWidth },

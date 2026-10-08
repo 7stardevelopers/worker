@@ -8,7 +8,7 @@ import { useTheme } from '@context/theme';
 import PressableScale from '@components/PressableScale';
 import { FontSize, FontWeight, Spacing, Radius } from '@constants/theme';
 import { formatINR } from '@utils/money';
-import { whenLabel } from '@utils/jobs';
+import { whenLabel, isAwaitingCustomer } from '@utils/jobs';
 
 // What the worker should do next, per status.
 const STATUS_COPY = {
@@ -16,14 +16,16 @@ const STATUS_COPY = {
   EN_ROUTE:    { title: 'Heading to customer', icon: 'navigate', cta: 'Open job' },
   IN_PROGRESS: { title: 'Job in progress',   icon: 'construct', cta: 'Finish job' },
 };
+const AWAITING_COPY = { title: 'Waiting for customer', icon: 'hourglass', cta: 'View job' };
 
 /** The one job the worker should act on right now, pinned above the feed. */
 export default function ActiveJobCard({ job, paused = false }) {
   const { Colors } = useTheme();
   const pulse = useRef(new Animated.Value(0)).current;
-  const copy = STATUS_COPY[job.status] ?? STATUS_COPY.ACCEPTED;
-  const accent = Colors.status[job.status] ?? Colors.primary;
-  const live = job.status !== 'ACCEPTED';
+  const awaiting = isAwaitingCustomer(job);
+  const copy = awaiting ? AWAITING_COPY : (STATUS_COPY[job.status] ?? STATUS_COPY.ACCEPTED);
+  const accent = awaiting ? Colors.warning : (Colors.status[job.status] ?? Colors.primary);
+  const live = job.status !== 'ACCEPTED' && !awaiting;
 
   useEffect(() => {
     if (!live || paused) return undefined;

@@ -13,7 +13,7 @@ import { FontSize, FontWeight, Spacing, Radius } from '@constants/theme';
 import { alertError } from '@utils/errors';
 import { api } from '@utils/api';
 import { formatINR } from '@utils/money';
-import { groupJobs, todaySummary, LIVE_STATUSES } from '@utils/jobs';
+import { groupJobs, todaySummary, isLiveJob } from '@utils/jobs';
 import useJobFeed from '@utils/useJobFeed';
 import useScreenFocus from '@utils/useScreenFocus';
 import JobCard from '@components/JobCard';
@@ -57,7 +57,7 @@ export default function JobsScreen() {
   const [refreshing,  setRefreshing]  = useState(false);
   const [unread,      setUnread]      = useState(0);
 
-  const hasLiveJob = useCallback(list => list.some(j => LIVE_STATUSES.includes(j.status)), []);
+  const hasLiveJob = useCallback(list => list.some(isLiveJob), []);
 
   const { jobs, loading, error, refresh } = useJobFeed({
     token,

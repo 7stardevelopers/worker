@@ -4,7 +4,12 @@ export const LIVE_STATUSES = ['EN_ROUTE', 'IN_PROGRESS'];
 export const OPEN_STATUSES = ['ACCEPTED', 'EN_ROUTE', 'IN_PROGRESS'];
 export const CLOSED_STATUSES = ['COMPLETED', 'CANCELLED', 'REJECTED'];
 
-const byScheduled = (a, b) => new Date(a.scheduledAt) - new Date(b.scheduledAt);
+/** Worker tapped Done; only the customer's confirmation is left. */
+export const isAwaitingCustomer = j => j.status === 'IN_PROGRESS' && !!j.providerDoneAt;
+/** On the way to / working at a customer's home (a job awaiting confirmation doesn't count). */
+export const isLiveJob = j => LIVE_STATUSES.includes(j.status) && !isAwaitingCustomer(j);
+
+const byScheduled =(a, b) => new Date(a.scheduledAt) - new Date(b.scheduledAt);
 const byRecent = (a, b) => new Date(b.scheduledAt ?? b.createdAt) - new Date(a.scheduledAt ?? a.createdAt);
 
 const isSameDay = (iso, day = new Date()) => !!iso && new Date(iso).toDateString() === day.toDateString();
@@ -16,7 +21,8 @@ const isSameDay = (iso, day = new Date()) => !!iso && new Date(iso).toDateString
 export function groupJobs(jobs) {
   const open = jobs.filter(j => OPEN_STATUSES.includes(j.status)).sort(byScheduled);
   // A job already underway beats an upcoming acceptance, whatever its time.
-  const active = open.find(j => LIVE_STATUSES.includes(j.status)) ?? open[0] ?? null;
+  // Jobs waiting only for the customer's confirmation go last.
+  const active = open.find(isLiveJob) ?? open.find(j => !isAwaitingCustomer(j)) ?? open[0] ?? null;
   return {
     active,
     requests: jobs.filter(j => j.status === 'PENDING').sort(byScheduled),

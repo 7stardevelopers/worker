@@ -113,6 +113,10 @@ export function normalizeJob(b) {
     doorOtp:         b.door_otp ?? null,
     doorOtpVerified: !!b.door_otp_verified,
     proofPhotos:     Array.isArray(proof) ? proof : [],
+    // Two-sided completion: the job is COMPLETED only after both tap Done.
+    providerDoneAt:  b.provider_done_at ?? null,
+    customerDoneAt:  b.customer_done_at ?? null,
+    disputedAt:      b.completion_disputed_at ?? null,
     // Only the detail endpoint returns items; list rows leave this empty.
     items: Array.isArray(b.items) ? b.items.map(i => ({
       id:       String(i.item_id ?? i.sub_service_id),

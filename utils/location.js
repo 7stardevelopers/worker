@@ -158,6 +158,9 @@ export async function stopLocationTracking() {
 }
 
 export function needsTracking(job) {
+  // Marked done (waiting for the customer to confirm) — the worker may already
+  // be heading to the next job, so stop sharing. Accepts raw API rows or normalized jobs.
+  if (job.provider_done_at || job.providerDoneAt) return false;
   if (LIVE_STATUSES.includes(job.status)) return true;
   if (job.status === 'ACCEPTED' && job.scheduled_at) {
     return (new Date(job.scheduled_at) - Date.now()) / 60000 <= PRE_JOB_WINDOW_MIN;
