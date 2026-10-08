@@ -78,7 +78,8 @@ export default function useJobFeed({ token, isAvailable, onNewRequest }) {
   useEffect(() => {
     if (!Notifications) return;
     const sub = Notifications.addNotificationReceivedListener(n => {
-      if (n.request.content.data?.type === 'job_available') refresh();
+      const type = n.request.content.data?.type;
+      if (type === 'job_available' || type === 'instant_job') refresh();
     });
     return () => sub.remove();
   }, [refresh]);

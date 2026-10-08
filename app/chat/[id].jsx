@@ -20,6 +20,8 @@ const SAFETY_POLL_MS = 15000;  // while connected — catches anything the socke
 const PAGE_SIZE = 50;
 const MAX_LENGTH = 1000;       // matches the backend limit
 const CHAT_OPEN_STATUSES = ['ACCEPTED', 'EN_ROUTE', 'IN_PROGRESS'];
+// Once the job ends the chat is hidden (support can still read it).
+const CHAT_ENDED_STATUSES = ['COMPLETED', 'CANCELLED', 'REJECTED'];
 const QUICK_REPLIES = [
   "I'm on my way",
   'Reached your location',
@@ -57,12 +59,15 @@ export default function ChatScreen() {
   const [booking,   setBooking]   = useState(null);
   const [hasMore,   setHasMore]   = useState(false);
   const [loadingOlder, setLoadingOlder] = useState(false);
+  const [endedByServer, setEndedByServer] = useState(false);  // 403 — job ended mid-session
   const listRef = useRef(null);
   const wsRef = useRef(null);
   const skipAutoScroll = useRef(false);
 
   const customerName = name || booking?.customer_name || 'Customer';
   const isClosed = booking ? !CHAT_OPEN_STATUSES.includes(booking.status) : false;
+  const isEnded = endedByServer || CHAT_ENDED_STATUSES.includes(booking?.status);
+  useEffect(() => { if (isEnded) setMessages([]); }, [isEnded]);
 
   // While this screen is focused, its own new-message pushes are hidden.
   useFocusEffect(useCallback(() => {
@@ -104,15 +109,18 @@ export default function ChatScreen() {
   useEffect(() => () => clearTimeout(seenTimer.current), []);
 
   const load = useCallback(async () => {
+    if (isEnded) { setLoading(false); return; }
     try {
       const res = await api.get(`/bookings/${id}/messages?limit=${PAGE_SIZE}`, token);
       const list = (res.data ?? []).map(m => toMessage(m, myId));
       merge(list);
       setHasMore(prev => prev || list.length >= PAGE_SIZE);
       if (list.some(m => !m.isOwn && !m.seenAt)) markSeen();
-    } catch { /* keep what we have; the next poll retries */ }
-    finally { setLoading(false); }
-  }, [id, token, myId, merge, markSeen]);
+    } catch (e) {
+      if (e?.status === 403) setEndedByServer(true);
+      /* otherwise keep what we have; the next poll retries */
+    } finally { setLoading(false); }
+  }, [id, token, myId, merge, markSeen, isEnded]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -135,7 +143,7 @@ export default function ChatScreen() {
 
   // Live delivery over the booking socket.
   useEffect(() => {
-    if (!WSS_URL || !token) return undefined;
+    if (!WSS_URL || !token || isEnded) return undefined;
     let ws = null;
     let closed = false;
     const connect = async () => {
@@ -167,17 +175,18 @@ export default function ChatScreen() {
       ws.onerror = () => setConnected(false);
     };
     connect();
-    return () => { closed = true; wsRef.current = null; ws?.close(); };
-  }, [id, token, myId, merge, markSeen]);
+    return () => { closed = true; wsRef.current = null; ws?.close(); setConnected(false); };
+  }, [id, token, myId, merge, markSeen, isEnded]);
 
   // Polling: fast while the socket is down, slow safety net while up; catch-up on foreground.
   useEffect(() => {
+    if (isEnded) return undefined;
     const timer = setInterval(load, connected ? SAFETY_POLL_MS : POLL_MS);
     const sub = AppState.addEventListener('change', s => {
       if (s === 'active') { load(); loadBooking(); }
     });
     return () => { clearInterval(timer); sub.remove(); };
-  }, [connected, load, loadBooking]);
+  }, [connected, load, loadBooking, isEnded]);
 
   useEffect(() => {
     if (skipAutoScroll.current) { skipAutoScroll.current = false; return; }
@@ -241,7 +250,7 @@ export default function ChatScreen() {
         <View style={{ flex: 1 }}>
           <Text style={[styles.name, { color: Colors.foreground }]} numberOfLines={1}>{customerName}</Text>
           <Text style={[styles.sub, { color: connected && !isClosed ? Colors.success : Colors.mutedForeground }]}>
-            {isClosed ? 'Chat closed' : connected ? 'Live' : 'Updates every few seconds'}
+            {isEnded ? 'Chat ended' : isClosed ? 'Chat closed' : connected ? 'Live' : 'Updates every few seconds'}
           </Text>
         </View>
       </View>
@@ -261,7 +270,20 @@ export default function ChatScreen() {
                 : <Text style={[styles.olderText, { color: Colors.primary }]}>Load earlier messages</Text>}
             </TouchableOpacity>
           ) : null}
-          ListEmptyComponent={!loading ? (
+          ListEmptyComponent={isEnded ? (
+            <View style={styles.empty}>
+              <Ionicons name="lock-closed-outline" size={40} color={Colors.subtleForeground} />
+              <Text style={[styles.endedTitle, { color: Colors.foreground }]}>Chat has ended</Text>
+              <Text style={[styles.emptyText, { color: Colors.mutedForeground }]}>
+                Chat is only available while the job is active. For help with this job, contact support.
+              </Text>
+              <TouchableOpacity onPress={() => router.push('/support')} accessibilityRole="button"
+                style={[styles.supportBtn, { backgroundColor: Colors.primary }]}>
+                <Ionicons name="headset-outline" size={16} color="#FFF" />
+                <Text style={styles.supportBtnText}>Contact support</Text>
+              </TouchableOpacity>
+            </View>
+          ) : !loading ? (
             <View style={styles.empty}>
               <Ionicons name="chatbubbles-outline" size={40} color={Colors.subtleForeground} />
               <Text style={[styles.emptyText, { color: Colors.mutedForeground }]}>
@@ -271,7 +293,7 @@ export default function ChatScreen() {
           ) : null}
         />
 
-        {isClosed ? (
+        {isEnded ? null : isClosed ? (
           <View style={[styles.closedBar, { borderTopColor: Colors.border }]}>
             <Ionicons name="lock-closed-outline" size={14} color={Colors.mutedForeground} />
             <Text style={[styles.closedText, { color: Colors.mutedForeground }]}>
@@ -340,4 +362,7 @@ const styles = StyleSheet.create({
   olderText:    { fontSize: FontSize.sm, fontWeight: FontWeight.semibold },
   closedBar:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, padding: Spacing.md, borderTopWidth: StyleSheet.hairlineWidth },
   closedText:   { fontSize: FontSize.sm },
+  endedTitle:   { fontSize: FontSize.h3, fontWeight: FontWeight.bold },
+  supportBtn:   { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: Radius.full, paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md },
+  supportBtnText: { color: '#FFF', fontSize: FontSize.sm, fontWeight: FontWeight.bold },
 });
