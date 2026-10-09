@@ -11,7 +11,7 @@ import { useAuth } from '@context/auth';
 import { useProvider } from '@context/provider';
 import { FontSize, FontWeight, Spacing, Radius, Shadow } from '@constants/theme';
 import { alertError } from '@utils/errors';
-import { formatINR, MIN_PAYOUT } from '@utils/money';
+import { formatINR, fromPaise, toPaise, MIN_PAYOUT } from '@utils/money';
 import { api } from '@utils/api';
 import { normalizeEarning } from '@utils/normalize';
 import EarningsChart from '@components/EarningsChart';
@@ -35,11 +35,12 @@ export default function EarningsScreen() {
   const [loading,    setLoading]    = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [requesting, setRequesting] = useState(false);
-  // Balance minus payouts already requested — falls back to the raw wallet
+  // Balance minus payouts already requested (rupees) — falls back to the wallet
   // balance until /providers/me/earnings has loaded.
   const [availableBalance, setAvailableBalance] = useState(null);
 
-  const walletBalance = profile?.wallet_balance ?? 0;
+  // The API returns paise; everything below is rupees.
+  const walletBalance = fromPaise(profile?.wallet_balance);
   const withdrawable  = availableBalance ?? walletBalance;
   const bankLast4     = (profile?.bank_account_number ?? '').slice(-4);
 
@@ -51,16 +52,17 @@ export default function EarningsScreen() {
         api.get('/providers/me/earnings', token),
       ]);
       const raw = Array.isArray(earningsRes?.data?.items) ? earningsRes.data.items : [];
-      setEarnings(raw.map(normalizeEarning));
+      const items = raw.map(normalizeEarning);
+      setEarnings(items);
       const available = Number(earningsRes?.data?.stats?.available_balance);
-      setAvailableBalance(Number.isFinite(available) ? available : null);
+      setAvailableBalance(Number.isFinite(available) ? fromPaise(available) : null);
 
       // build 7-day chart data
       const today = new Date();
       const buckets = Array(7).fill(0);
-      raw.forEach(e => {
+      items.forEach(e => {
         if (e.type === 'DEDUCTION') return;
-        const d = new Date(e.created_at);
+        const d = new Date(e.createdAt);
         const dayDiff = Math.floor((today - d) / 86400000);
         const slot = 6 - dayDiff;
         if (slot >= 0 && slot < 7) buckets[slot] += e.amount ?? 0;
@@ -85,7 +87,9 @@ export default function EarningsScreen() {
   }, [load]);
 
   const handlePayoutRequest = () => {
-    if (withdrawable < MIN_PAYOUT) {
+    // The worker withdraws the full available amount (rupees); never more than the wallet holds.
+    const amount = Math.min(withdrawable, walletBalance);
+    if (amount < MIN_PAYOUT) {
       if (walletBalance >= MIN_PAYOUT) {
         Alert.alert('Payout Pending', 'Your earlier payout request is still being processed.');
         return;
@@ -95,7 +99,7 @@ export default function EarningsScreen() {
     }
     Alert.alert(
       'Request Payout',
-      `Request payout of ${formatINR(withdrawable)} to account ****${bankLast4}?`,
+      `Request payout of ${formatINR(amount)} to account ****${bankLast4}?`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -104,7 +108,8 @@ export default function EarningsScreen() {
           onPress: async () => {
             setRequesting(true);
             try {
-              await api.post('/payments/payout-request', { amount: withdrawable }, token);
+              // The backend takes paise.
+              await api.post('/payments/payout-request', { amount: toPaise(amount) }, token);
               Alert.alert('Payout Requested', 'Your payout will be processed within 2-3 business days.');
               await load();
             } catch (e) {

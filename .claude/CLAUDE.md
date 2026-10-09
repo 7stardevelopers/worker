@@ -99,7 +99,7 @@ Throws `Error(message)` with `.status` on non-2xx. Base URL from `process.env.EX
 
 ### Data Normalization (`utils/normalize.js`)
 
-All API responses are passed through normalizers before use in components:
+All API responses are passed through normalizers before use in components (they also convert money from paise to rupees):
 - `normalizeJob(b)` — booking from provider POV (includes `providerEarning`, `doorOtp`, `proofPhotos`, `address.lat/lng`)
 - `normalizeEarning(e)` — earning record
 - `normalizeProvider(p)` — provider profile
@@ -128,8 +128,12 @@ Always shrink photos with `compressImage()` (`utils/image.js`, ~1600px JPEG) bef
 
 1. **Styling**: `StyleSheet.create` only — never inline style objects. Colors always from `useTheme()`, never hardcoded.
 
-2. **Amounts**: Booking, earning and wallet values from the API are whole **rupees** (same as the
-   Customer app and admin panel). Display with `formatINR()` from `utils/money.js`.
+2. **Amounts**: The API stores, returns and accepts every money value (`base_price`, `price_snapshot`,
+   `total_amount`, `platform_fee`, earning/payout `amount`, `wallet_balance`, earnings `stats`) as integer
+   **paise** (₹499 = `49900`). Convert to rupees at the boundary — the normalizers in `utils/normalize.js`
+   already do; for raw fields (e.g. `profile.wallet_balance`, earnings `stats`) use `fromPaise()` from
+   `utils/money.js`. Components only ever see rupees; display with `formatINR()` (rupees). Anything sent
+   back (e.g. `POST /payments/payout-request { amount }`) must go through `toPaise()`.
 
 3. **Status colors**: Use `Colors.status[booking.status]` from `constants/theme.js` — the `statusMap` covers `PENDING | ACCEPTED | EN_ROUTE | IN_PROGRESS | COMPLETED | CANCELLED | REJECTED`.
 

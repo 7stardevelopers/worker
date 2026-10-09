@@ -1,3 +1,6 @@
+import { fromPaise } from '@utils/money';
+
+// Money fields arrive in paise; every normalizer returns rupees.
 const COUPON_COLORS = ['#6366F1', '#8B5CF6', '#F59E0B', '#10B981', '#3B82F6', '#EC4899'];
 
 export function normalizeCategory(cat) {
@@ -24,7 +27,7 @@ export function normalizeService(svc) {
     categoryId: svc.category_id,
     name: svc.name,
     description: svc.description ?? '',
-    basePrice: svc.base_price ?? 0,
+    basePrice: fromPaise(svc.base_price),
     rating: svc.rating ? Number(svc.rating) : 4.5,
     reviewCount: svc.review_count ?? 0,
     duration: svc.duration ?? 60,
@@ -44,7 +47,7 @@ export function normalizeBooking(b) {
     id: b.booking_id,
     status: b.status ?? 'PENDING',
     scheduledAt: b.scheduled_at,
-    totalAmount: b.total_amount ?? 0,
+    totalAmount: fromPaise(b.total_amount),
     paymentStatus: b.payment_status,
     service: {
       id: b.service_id,
@@ -105,9 +108,9 @@ export function normalizeJob(b) {
     customerPhoto:   b.customer_photo ?? null,
     status:          b.status ?? 'PENDING',
     scheduledAt:     b.scheduled_at,
-    totalAmount:     b.total_amount ?? 0,
-    platformFee:     b.platform_fee ?? 0,
-    providerEarning: (b.total_amount ?? 0) - (b.platform_fee ?? 0),
+    totalAmount:     fromPaise(b.total_amount),
+    platformFee:     fromPaise(b.platform_fee),
+    providerEarning: fromPaise((Number(b.total_amount) || 0) - (Number(b.platform_fee) || 0)),
     paymentStatus:   b.payment_status,
     isInstant:       !!b.is_instant,
     doorOtp:         b.door_otp ?? null,
@@ -123,7 +126,7 @@ export function normalizeJob(b) {
     items: Array.isArray(b.items) ? b.items.map(i => ({
       id:       String(i.item_id ?? i.sub_service_id),
       name:     i.name_snapshot ?? 'Item',
-      price:    Number(i.price_snapshot ?? 0),
+      price:    fromPaise(i.price_snapshot ?? i.price),
       quantity: i.quantity ?? 1,
     })) : [],
     customerNotes:   b.customer_notes ?? '',
@@ -147,7 +150,7 @@ export function normalizeEarning(e) {
   return {
     id:        e.earning_id,
     bookingId: e.booking_id,
-    amount:    e.amount ?? 0,
+    amount:    fromPaise(e.amount),
     type:      e.type ?? 'BOOKING',
     createdAt: e.created_at,
     timeAgo:   timeAgo(e.created_at),
@@ -163,7 +166,7 @@ export function normalizeProvider(p) {
     avgRating:      p.avg_rating ?? 0,
     totalReviews:   p.total_reviews ?? 0,
     acceptanceRate: p.acceptance_rate ?? 1,
-    walletBalance:  p.wallet_balance ?? 0,
+    walletBalance:  fromPaise(p.wallet_balance),
     bankAccount:    p.bank_account_number ?? '',
     bankIfsc:       p.bank_ifsc ?? '',
     bio:            p.bio ?? '',
