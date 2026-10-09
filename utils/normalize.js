@@ -110,7 +110,10 @@ export function normalizeJob(b) {
     scheduledAt:     b.scheduled_at,
     totalAmount:     fromPaise(b.total_amount),
     platformFee:     fromPaise(b.platform_fee),
-    providerEarning: fromPaise((Number(b.total_amount) || 0) - (Number(b.platform_fee) || 0)),
+    // Full job price before customer discounts (coupons/coins/plan are platform-funded).
+    jobPrice:        fromPaise(Number(b.sub_total) || Number(b.total_amount) || 0),
+    // Discounts are platform-funded: the worker earns on the full job price (sub_total).
+    providerEarning: fromPaise((Number(b.sub_total) || Number(b.total_amount) || 0) - (Number(b.platform_fee) || 0)),
     paymentStatus:   b.payment_status,
     isInstant:       !!b.is_instant,
     doorOtp:         b.door_otp ?? null,

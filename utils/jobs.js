@@ -41,7 +41,10 @@ export function todaySummary(jobs) {
  * older unpaid bookings that were accepted before that rule (or a ₹0 job never does).
  */
 export function needsCashCollection(job) {
-  return job.paymentStatus !== 'PAID' && Number(job.totalAmount) > 0
+  // Any online payment state (paid, partly/fully refunded, refund pending) means
+  // the customer already paid in the app — never ask them for cash again.
+  const unpaid = !job.paymentStatus || ['PENDING', 'FAILED'].includes(job.paymentStatus);
+  return unpaid && Number(job.totalAmount) > 0
     && ['EN_ROUTE', 'IN_PROGRESS', 'COMPLETED'].includes(job.status);
 }
 

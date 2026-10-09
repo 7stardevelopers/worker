@@ -298,7 +298,7 @@ export default function JobDetailScreen() {
           <LinearGradient colors={Colors.gradientPrimary} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.heroGrad}>
             <Text style={styles.heroLabel}>Your Earning</Text>
             <Text style={styles.heroAmount}>{formatINR(job.providerEarning)}</Text>
-            <Text style={styles.heroTotal}>Total: {formatINR(job.totalAmount)} • Platform fee: {formatINR(job.platformFee)}</Text>
+            <Text style={styles.heroTotal}>Job price: {formatINR(job.jobPrice ?? job.totalAmount)} • Platform fee: {formatINR(job.platformFee)}</Text>
           </LinearGradient>
         </View>
 
