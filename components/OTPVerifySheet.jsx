@@ -7,7 +7,7 @@ import { FontSize, FontWeight, Spacing, Radius, Shadow } from '@constants/theme'
 
 const OTP_LENGTH = 4;
 
-export default function OTPVerifySheet({ visible, onVerify, onClose, loading, apiError }) {
+export default function OTPVerifySheet({ visible, onVerify, onClose, loading, apiError, customerConfirmed }) {
   const { Colors } = useTheme();
   const [digits, setDigits] = useState(Array(OTP_LENGTH).fill(''));
   const [error, setError]   = useState('');
@@ -59,9 +59,11 @@ export default function OTPVerifySheet({ visible, onVerify, onClose, loading, ap
             <View style={[styles.iconCircle, { backgroundColor: Colors.primary + '20' }]}>
               <Ionicons name="keypad-outline" size={28} color={Colors.primary} />
             </View>
-            <Text style={[styles.title, { color: Colors.foreground }]}>Door OTP</Text>
+            <Text style={[styles.title, { color: Colors.foreground }]}>Door code</Text>
             <Text style={[styles.sub, { color: Colors.mutedForeground }]}>
-              Ask the customer for their 4-digit door code
+              {customerConfirmed
+                ? 'The customer confirmed it’s you. Ask them for the 4-digit door code.'
+                : 'The customer checks your face against your profile photo in their app. Once they tap “Yes”, they’ll see a 4-digit code. Enter it here.'}
             </Text>
           </View>
 

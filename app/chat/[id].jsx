@@ -26,7 +26,7 @@ const QUICK_REPLIES = [
   "I'm on my way",
   'Reached your location',
   'Running 10 minutes late, sorry',
-  'Please share the door OTP when I arrive',
+  'Please check my photo in your app when I arrive',
   'Work is complete, please check',
 ];
 

@@ -112,6 +112,8 @@ export function normalizeJob(b) {
     isInstant:       !!b.is_instant,
     doorOtp:         b.door_otp ?? null,
     doorOtpVerified: !!b.door_otp_verified,
+    // Customer matched the worker with their profile photo — they can now see the door code.
+    identityConfirmedAt: b.identity_confirmed_at ?? null,
     proofPhotos:     Array.isArray(proof) ? proof : [],
     // Two-sided completion: the job is COMPLETED only after both tap Done.
     providerDoneAt:  b.provider_done_at ?? null,

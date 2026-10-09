@@ -43,7 +43,7 @@ function openNavigation(lat, lng) {
 const TRANSITION_ACTIONS = {
   PENDING:     { label: 'Accept Job',       icon: 'checkmark-outline',        colorKey: 'success', isAccept: true },
   ACCEPTED:    { next: 'EN_ROUTE',    label: "I'm on my way",   icon: 'navigate-outline',   colorKey: 'info' },
-  EN_ROUTE:    { next: 'IN_PROGRESS', label: 'Verify Door OTP', icon: 'keypad-outline',     colorKey: 'secondary', needsDoorOtp: true },
+  EN_ROUTE:    { next: 'IN_PROGRESS', label: 'Enter door code', icon: 'keypad-outline',     colorKey: 'secondary', needsDoorOtp: true },
   IN_PROGRESS: { next: 'COMPLETED',   label: 'Mark as Complete', icon: 'checkmark-circle-outline', colorKey: 'success', needsProof: true },
 };
 
@@ -484,6 +484,7 @@ export default function JobDetailScreen() {
         onClose={() => setShowOtpSheet(false)}
         loading={actionLoading}
         apiError={otpError}
+        customerConfirmed={!!job?.identityConfirmedAt}
       />
     </SafeAreaView>
   );
