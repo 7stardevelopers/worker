@@ -36,9 +36,13 @@ export function todaySummary(jobs) {
   return { count: done.length, earned: done.reduce((s, j) => s + (j.providerEarning ?? 0), 0) };
 }
 
-/** Customer chose "pay at service" — the worker must collect the total in person. */
+/**
+ * Jobs now reach workers only after online payment, so this only fires for
+ * older unpaid bookings that were accepted before that rule (or a ₹0 job never does).
+ */
 export function needsCashCollection(job) {
-  return job.paymentStatus !== 'PAID' && ['EN_ROUTE', 'IN_PROGRESS', 'COMPLETED'].includes(job.status);
+  return job.paymentStatus !== 'PAID' && Number(job.totalAmount) > 0
+    && ['EN_ROUTE', 'IN_PROGRESS', 'COMPLETED'].includes(job.status);
 }
 
 export function whenLabel(iso) {
