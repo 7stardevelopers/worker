@@ -26,11 +26,13 @@ const TYPE_CONFIG = {
   CANCEL_FEE:        { label: 'Cancellation fee',        icon: 'close-circle-outline',  color: '#10B981', sign: '+' },
   CASH_FEE_REVERSAL: { label: 'Cash fee returned',       icon: 'refresh-outline',       color: '#10B981', sign: '+' },
   DUES_PAID:         { label: 'Dues paid',               icon: 'checkmark-done-outline', color: '#6366F1', sign: '+' },
+  PROMO_CREDIT:      { label: 'Discount paid by us',     icon: 'pricetag-outline',      color: '#10B981', sign: '+' },
   CASH_FEE:          { label: 'Platform fee (cash job)', icon: 'cash-outline',          color: '#EF4444', sign: '-' },
+  PROMO_REVERSAL:    { label: 'Discount credit undone',  icon: 'pricetag-outline',      color: '#EF4444', sign: '-' },
   DEDUCTION:         { label: 'Deduction',               icon: 'remove-circle-outline', color: '#EF4444', sign: '-' },
 };
 // Money taken off the wallet, and money that isn't income (paying dues) — kept out of the earnings totals.
-const DEBIT_TYPES = ['DEDUCTION', 'CASH_FEE'];
+const DEBIT_TYPES = ['DEDUCTION', 'CASH_FEE', 'PROMO_REVERSAL'];
 const NOT_INCOME  = [...DEBIT_TYPES, 'DUES_PAID'];
 
 export default function EarningsScreen() {
