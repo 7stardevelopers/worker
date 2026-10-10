@@ -22,6 +22,7 @@ import { compressImage } from '@utils/image';
 import { startLocationTracking, stopLocationTracking, needsTracking, reconcileTracking } from '@utils/location';
 import { useCustomerCall } from '@utils/useCustomerCall';
 import StatusPill from '@components/StatusPill';
+import PaymentBadge from '@components/PaymentBadge';
 import OTPVerifySheet from '@components/OTPVerifySheet';
 import Skeleton from '@components/Skeleton';
 import EmptyState from '@components/EmptyState';
@@ -304,6 +305,10 @@ export default function JobDetailScreen() {
 
         <JobTimeline status={job.status} />
 
+        <View style={styles.paymentRow}>
+          <PaymentBadge job={job} />
+        </View>
+
         {needsCashCollection(job) && (
           <View style={[styles.banner, { backgroundColor: Colors.warning + '16', borderColor: Colors.warning + '50' }]}>
             <Ionicons name="cash-outline" size={20} color={Colors.warning} />
@@ -312,7 +317,7 @@ export default function JobDetailScreen() {
                 Collect {formatINR(job.totalAmount)} from the customer
               </Text>
               <Text style={[styles.bannerSub, { color: Colors.mutedForeground }]}>
-                They chose to pay at service — cash or UPI, before you leave.
+                They chose to pay after the job — collect cash, unless they pay online in their app.
               </Text>
             </View>
           </View>
@@ -502,6 +507,7 @@ const styles = StyleSheet.create({
   heroLabel:     { color: 'rgba(255,255,255,0.75)', fontSize: FontSize.sm },
   heroAmount:    { color: '#FFF', fontSize: 44, fontWeight: FontWeight.bold, letterSpacing: -1 },
   heroTotal:     { color: 'rgba(255,255,255,0.65)', fontSize: FontSize.xs },
+  paymentRow:    { marginHorizontal: Spacing.base },
   banner:        { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, marginHorizontal: Spacing.base, padding: Spacing.md, borderRadius: Radius.lg, borderWidth: 1 },
   bannerTitle:   { fontSize: FontSize.body, fontWeight: FontWeight.semibold },
   bannerSub:     { fontSize: FontSize.xs, marginTop: 2 },

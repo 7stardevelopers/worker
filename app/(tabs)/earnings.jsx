@@ -17,17 +17,25 @@ import { normalizeEarning } from '@utils/normalize';
 import EarningsChart from '@components/EarningsChart';
 import EmptyState from '@components/EmptyState';
 import Skeleton from '@components/Skeleton';
+import RazorpayCheckoutModal from '@components/RazorpayCheckoutModal';
 
 const TYPE_CONFIG = {
-  BOOKING:   { icon: 'briefcase-outline', color: '#10B981', sign: '+' },
-  TIP:       { icon: 'gift-outline',       color: '#F59E0B', sign: '+' },
-  BONUS:     { icon: 'star-outline',       color: '#6366F1', sign: '+' },
-  DEDUCTION: { icon: 'remove-circle-outline', color: '#EF4444', sign: '-' },
+  BOOKING:           { label: 'Job earning',             icon: 'briefcase-outline',     color: '#10B981', sign: '+' },
+  TIP:               { label: 'Tip',                     icon: 'gift-outline',          color: '#F59E0B', sign: '+' },
+  BONUS:             { label: 'Bonus',                   icon: 'star-outline',          color: '#6366F1', sign: '+' },
+  CANCEL_FEE:        { label: 'Cancellation fee',        icon: 'close-circle-outline',  color: '#10B981', sign: '+' },
+  CASH_FEE_REVERSAL: { label: 'Cash fee returned',       icon: 'refresh-outline',       color: '#10B981', sign: '+' },
+  DUES_PAID:         { label: 'Dues paid',               icon: 'checkmark-done-outline', color: '#6366F1', sign: '+' },
+  CASH_FEE:          { label: 'Platform fee (cash job)', icon: 'cash-outline',          color: '#EF4444', sign: '-' },
+  DEDUCTION:         { label: 'Deduction',               icon: 'remove-circle-outline', color: '#EF4444', sign: '-' },
 };
+// Money taken off the wallet, and money that isn't income (paying dues) — kept out of the earnings totals.
+const DEBIT_TYPES = ['DEDUCTION', 'CASH_FEE'];
+const NOT_INCOME  = [...DEBIT_TYPES, 'DUES_PAID'];
 
 export default function EarningsScreen() {
   const { Colors } = useTheme();
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const { profile, fetchProfile } = useProvider();
 
   const [earnings,   setEarnings]   = useState([]);
@@ -38,6 +46,12 @@ export default function EarningsScreen() {
   // Balance minus payouts already requested (rupees) — falls back to the wallet
   // balance until /providers/me/earnings has loaded.
   const [availableBalance, setAvailableBalance] = useState(null);
+  // Fees from cash jobs the worker owes (rupees); at the limit new jobs stop.
+  const [dues,        setDues]        = useState(0);
+  const [jobsBlocked, setJobsBlocked] = useState(false);
+  const [nextPayout,  setNextPayout]  = useState(null);
+  const [payingDues,  setPayingDues]  = useState(false);
+  const [duesOrder,   setDuesOrder]   = useState(null);
 
   // The API returns paise; everything below is rupees.
   const walletBalance = fromPaise(profile?.wallet_balance);
@@ -54,14 +68,18 @@ export default function EarningsScreen() {
       const raw = Array.isArray(earningsRes?.data?.items) ? earningsRes.data.items : [];
       const items = raw.map(normalizeEarning);
       setEarnings(items);
-      const available = Number(earningsRes?.data?.stats?.available_balance);
+      const stats = earningsRes?.data?.stats ?? {};
+      const available = Number(stats.available_balance);
       setAvailableBalance(Number.isFinite(available) ? fromPaise(available) : null);
+      setDues(fromPaise(stats.dues ?? 0));
+      setJobsBlocked(!!stats.jobs_blocked);
+      setNextPayout(stats.next_payout_date ?? null);
 
       // build 7-day chart data
       const today = new Date();
       const buckets = Array(7).fill(0);
       items.forEach(e => {
-        if (e.type === 'DEDUCTION') return;
+        if (NOT_INCOME.includes(e.type)) return;
         const d = new Date(e.createdAt);
         const dayDiff = Math.floor((today - d) / 86400000);
         const slot = 6 - dayDiff;
@@ -123,19 +141,48 @@ export default function EarningsScreen() {
     );
   };
 
+  const startPayDues = async () => {
+    setPayingDues(true);
+    try {
+      setDuesOrder(await api.post('/providers/me/dues/order', {}, token).then(r => r.data));
+    } catch (e) {
+      alertError('Could not start payment', e);
+    } finally {
+      setPayingDues(false);
+    }
+  };
+
+  const handleDuesPaid = async (result) => {
+    setDuesOrder(null);
+    setPayingDues(true);
+    try {
+      await api.post('/providers/me/dues/verify', result, token);
+      Alert.alert('Dues cleared', 'Thanks! You can take new jobs again.');
+    } catch (e) {
+      alertError('Payment verification failed', e);
+    } finally {
+      setPayingDues(false);
+      await load();
+    }
+  };
+
+  const nextPayoutLabel = nextPayout
+    ? new Date(`${nextPayout}T00:00:00`).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })
+    : null;
+
   const thisWeek  = earnings.filter(e => {
     const d = new Date(e.createdAt);
     const now = new Date();
-    return (now - d) < 7 * 86400000 && e.type !== 'DEDUCTION';
+    return (now - d) < 7 * 86400000 && !NOT_INCOME.includes(e.type);
   }).reduce((s, e) => s + e.amount, 0);
 
   const thisMonth = earnings.filter(e => {
     const d = new Date(e.createdAt);
     const now = new Date();
-    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear() && e.type !== 'DEDUCTION';
+    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear() && !NOT_INCOME.includes(e.type);
   }).reduce((s, e) => s + e.amount, 0);
 
-  const total = earnings.filter(e => e.type !== 'DEDUCTION').reduce((s, e) => s + e.amount, 0);
+  const total = earnings.filter(e => !NOT_INCOME.includes(e.type)).reduce((s, e) => s + e.amount, 0);
 
   return (
     <SafeAreaView style={[styles.root, { backgroundColor: Colors.background }]} edges={['top']}>
@@ -164,8 +211,38 @@ export default function EarningsScreen() {
                   <Ionicons name="send-outline" size={16} color="#6366F1" />
                   <Text style={styles.payoutText}>{requesting ? 'Requesting...' : 'Request Payout'}</Text>
                 </TouchableOpacity>
+                {nextPayoutLabel && (
+                  <Text style={styles.nextPayout}>Automatic payout to your bank every Mon & Thu · next {nextPayoutLabel}</Text>
+                )}
               </LinearGradient>
             </View>
+
+            {/* Dues from cash jobs (Rapido-style: the worker keeps the cash, owes the platform fee) */}
+            {dues > 0 && (
+              <View style={[styles.duesCard, {
+                backgroundColor: (jobsBlocked ? Colors.error : Colors.warning) + '14',
+                borderColor: (jobsBlocked ? Colors.error : Colors.warning) + '50',
+              }]}>
+                <Ionicons name={jobsBlocked ? 'lock-closed' : 'alert-circle'} size={22} color={jobsBlocked ? Colors.error : Colors.warning} />
+                <View style={styles.duesInfo}>
+                  <Text style={[styles.duesTitle, { color: Colors.foreground }]}>You owe {formatINR(dues)}</Text>
+                  <Text style={[styles.duesSub, { color: Colors.mutedForeground }]}>
+                    {jobsBlocked
+                      ? 'New jobs are paused until you clear your dues.'
+                      : 'Platform fee from cash jobs. It is also taken from your next online earnings.'}
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  style={[styles.duesBtn, { backgroundColor: Colors.primary, opacity: payingDues ? 0.6 : 1 }]}
+                  onPress={startPayDues}
+                  disabled={payingDues}
+                  accessibilityLabel="Pay dues"
+                  activeOpacity={0.85}
+                >
+                  <Text style={styles.duesBtnText}>{payingDues ? 'Wait…' : 'Pay'}</Text>
+                </TouchableOpacity>
+              </View>
+            )}
 
             {/* Summary Row */}
             <View style={styles.summaryRow}>
@@ -200,11 +277,11 @@ export default function EarningsScreen() {
               </View>
               <View style={styles.rowInfo}>
                 <Text style={[styles.rowTitle, { color: Colors.foreground }]}>
-                  {item.type.charAt(0) + item.type.slice(1).toLowerCase()}
+                  {cfg.label ?? item.type}
                 </Text>
                 <Text style={[styles.rowTime, { color: Colors.mutedForeground }]}>{item.timeAgo}</Text>
               </View>
-              <Text style={[styles.rowAmount, { color: item.type === 'DEDUCTION' ? Colors.error : Colors.success }]}>
+              <Text style={[styles.rowAmount, { color: DEBIT_TYPES.includes(item.type) ? Colors.error : Colors.success }]}>
                 {cfg.sign}{formatINR(item.amount)}
               </Text>
             </View>
@@ -213,6 +290,14 @@ export default function EarningsScreen() {
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} colors={[Colors.primary]} />
         }
+      />
+      <RazorpayCheckoutModal
+        visible={!!duesOrder}
+        order={duesOrder}
+        summary={{ title: 'Clear dues', description: 'Platform fee from cash jobs' }}
+        prefill={{ name: user?.name ?? '', contact: user?.phone ?? '' }}
+        onSuccess={handleDuesPaid}
+        onDismiss={() => setDuesOrder(null)}
       />
     </SafeAreaView>
   );
@@ -229,6 +314,13 @@ const styles = StyleSheet.create({
   walletAmount: { color: '#FFF', fontSize: 40, fontWeight: FontWeight.bold, letterSpacing: -1 },
   payoutBtn:    { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#FFF', borderRadius: Radius.full, paddingHorizontal: Spacing.base, paddingVertical: 8, alignSelf: 'flex-start', marginTop: Spacing.sm },
   payoutText:   { color: '#6366F1', fontSize: FontSize.sm, fontWeight: FontWeight.bold },
+  nextPayout:   { color: 'rgba(255,255,255,0.8)', fontSize: FontSize.xs, marginTop: 2 },
+  duesCard:     { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, marginHorizontal: Spacing.base, marginBottom: Spacing.base, borderRadius: Radius.lg, borderWidth: 1, padding: Spacing.md },
+  duesInfo:     { flex: 1, gap: 2 },
+  duesTitle:    { fontSize: FontSize.body, fontWeight: FontWeight.bold },
+  duesSub:      { fontSize: FontSize.xs },
+  duesBtn:      { borderRadius: Radius.full, paddingHorizontal: Spacing.base, paddingVertical: 8 },
+  duesBtnText:  { color: '#FFF', fontSize: FontSize.sm, fontWeight: FontWeight.bold },
   summaryRow:   { flexDirection: 'row', marginHorizontal: Spacing.base, marginBottom: Spacing.base, gap: Spacing.sm },
   summaryCard:  { flex: 1, borderRadius: Radius.lg, borderWidth: StyleSheet.hairlineWidth, padding: Spacing.md, alignItems: 'center', gap: 4 },
   summaryLabel: { fontSize: FontSize.xs },

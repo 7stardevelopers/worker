@@ -5,6 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '@context/theme';
 import { FontSize, FontWeight, Spacing, Radius, Shadow } from '@constants/theme';
 import { formatINR } from '@utils/money';
+import PaymentBadge from '@components/PaymentBadge';
 
 const COUNTDOWN = 30;
 
@@ -85,6 +86,7 @@ export default function JobRequestModal({ visible, job, onAccept, onReject, onEx
               <Text style={[styles.earningAmount, { color: Colors.success }]}>
                 {formatINR(earning)}
               </Text>
+              <PaymentBadge job={job} small />
             </View>
           </View>
 

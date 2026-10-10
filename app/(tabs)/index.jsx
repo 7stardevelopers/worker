@@ -12,7 +12,7 @@ import { useProvider } from '@context/provider';
 import { FontSize, FontWeight, Spacing, Radius } from '@constants/theme';
 import { alertError } from '@utils/errors';
 import { api } from '@utils/api';
-import { formatINR } from '@utils/money';
+import { formatINR, fromPaise } from '@utils/money';
 import { groupJobs, todaySummary, isLiveJob } from '@utils/jobs';
 import useJobFeed from '@utils/useJobFeed';
 import useScreenFocus from '@utils/useScreenFocus';
@@ -123,6 +123,8 @@ export default function JobsScreen() {
 
   const firstName = user?.name?.split(' ')[0] ?? 'Partner';
   const rating = Number(profile?.avg_rating ?? 0);
+  // Fees from cash jobs push the wallet below zero (paise → rupees); at the limit new jobs stop.
+  const owed = Math.max(0, -fromPaise(profile?.wallet_balance ?? 0));
   const showSkeleton = loading && jobs.length === 0;
   const loadFailed = !!error && jobs.length === 0;
 
@@ -166,6 +168,21 @@ export default function JobsScreen() {
               Turn on location access to go online and receive jobs.
             </Text>
             <Text style={[styles.bannerCta, { color: Colors.warning }]}>Enable</Text>
+          </TouchableOpacity>
+        )}
+
+        {owed > 0 && (
+          <TouchableOpacity
+            style={[styles.banner, { backgroundColor: Colors.error + '14', borderColor: Colors.error + '40' }]}
+            onPress={() => router.push('/(tabs)/earnings')}
+            activeOpacity={0.8}
+            accessibilityRole="button"
+          >
+            <Ionicons name="cash-outline" size={16} color={Colors.error} />
+            <Text style={[styles.bannerText, { color: Colors.foreground }]}>
+              You owe {formatINR(owed)} in fees from cash jobs. Clear it to keep getting new jobs.
+            </Text>
+            <Text style={[styles.bannerCta, { color: Colors.error }]}>Pay</Text>
           </TouchableOpacity>
         )}
 

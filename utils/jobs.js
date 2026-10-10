@@ -37,9 +37,17 @@ export function todaySummary(jobs) {
 }
 
 /**
- * Jobs now reach workers only after online payment, so this only fires for
- * older unpaid bookings that were accepted before that rule (or a ₹0 job never does).
+ * How the customer chose to pay while booking. "Pay now" jobs only reach
+ * workers once paid, so an unpaid job here is always "Pay after job".
  */
+export function paymentInfo(job) {
+  if (!(Number(job.totalAmount) > 0)) return null;
+  if (job.paymentStatus === 'PAID') return { label: 'Paid online', icon: 'checkmark-circle', colorKey: 'success' };
+  if (['REFUNDED', 'PARTIALLY_REFUNDED', 'REFUND_FAILED'].includes(job.paymentStatus)) return null;
+  return { label: 'Pay after job', icon: 'cash-outline', colorKey: 'warning' };
+}
+
+/** Customer chose "Pay after job done" and hasn't paid online — collect at the end. */
 export function needsCashCollection(job) {
   return job.paymentStatus !== 'PAID' && Number(job.totalAmount) > 0
     && ['EN_ROUTE', 'IN_PROGRESS', 'COMPLETED'].includes(job.status);

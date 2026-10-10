@@ -7,6 +7,7 @@ import { useTheme } from '@context/theme';
 import { FontSize, FontWeight, Spacing, Radius, Shadow } from '@constants/theme';
 import { formatINR } from '@utils/money';
 import StatusPill from '@components/StatusPill';
+import PaymentBadge from '@components/PaymentBadge';
 
 const ACTIVE_STATUSES = ['ACCEPTED', 'EN_ROUTE', 'IN_PROGRESS'];
 
@@ -76,6 +77,7 @@ export default function JobCard({ job }) {
             {formatINR(earning)}
           </Text>
         </View>
+        <PaymentBadge job={job} small />
         <View style={[styles.arrow, { backgroundColor: Colors.primary + '15', borderColor: Colors.primary + '30' }]}>
           <Ionicons name="chevron-forward" size={16} color={Colors.primary} />
         </View>

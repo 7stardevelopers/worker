@@ -49,6 +49,7 @@ export function normalizeBooking(b) {
     scheduledAt: b.scheduled_at,
     totalAmount: fromPaise(b.total_amount),
     paymentStatus: b.payment_status,
+    paymentMode: b.payment_mode ?? 'PAY_AFTER',
     service: {
       id: b.service_id,
       name: snap?.name ?? 'Service',
@@ -112,6 +113,7 @@ export function normalizeJob(b) {
     platformFee:     fromPaise(b.platform_fee),
     providerEarning: fromPaise((Number(b.total_amount) || 0) - (Number(b.platform_fee) || 0)),
     paymentStatus:   b.payment_status,
+    paymentMode:     b.payment_mode ?? 'PAY_AFTER',
     isInstant:       !!b.is_instant,
     doorOtp:         b.door_otp ?? null,
     doorOtpVerified: !!b.door_otp_verified,

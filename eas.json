@@ -9,7 +9,8 @@
       "distribution": "internal",
       "env": {
         "EXPO_PUBLIC_API_BASE_URL": "https://g61ebs8u40.execute-api.ap-south-1.amazonaws.com/Prod",
-        "EXPO_PUBLIC_WSS_URL": "wss://dndipnu4hj.execute-api.ap-south-1.amazonaws.com/production"
+        "EXPO_PUBLIC_WSS_URL": "wss://dndipnu4hj.execute-api.ap-south-1.amazonaws.com/production",
+        "EXPO_PUBLIC_RAZORPAY_KEY_ID": "rzp_test_TNAOhkqEyVIX1B"
       }
     },
     "preview": {
@@ -19,7 +20,8 @@
       "distribution": "internal",
       "env": {
         "EXPO_PUBLIC_API_BASE_URL": "https://g61ebs8u40.execute-api.ap-south-1.amazonaws.com/Prod",
-        "EXPO_PUBLIC_WSS_URL": "wss://dndipnu4hj.execute-api.ap-south-1.amazonaws.com/production"
+        "EXPO_PUBLIC_WSS_URL": "wss://dndipnu4hj.execute-api.ap-south-1.amazonaws.com/production",
+        "EXPO_PUBLIC_RAZORPAY_KEY_ID": "rzp_test_TNAOhkqEyVIX1B"
       }
     },
     "production": {
@@ -28,7 +30,8 @@
       },
       "env": {
         "EXPO_PUBLIC_API_BASE_URL": "https://api.7starexperts.com",
-        "EXPO_PUBLIC_WSS_URL": "wss://wss.7starexperts.com"
+        "EXPO_PUBLIC_WSS_URL": "wss://wss.7starexperts.com",
+        "EXPO_PUBLIC_RAZORPAY_KEY_ID": "rzp_test_TNAOhkqEyVIX1B"
       },
       "autoIncrement": true
     }
