@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert, Image, Linking, Platform, RefreshControl,
   ActivityIndicator,
@@ -28,16 +28,25 @@ import Skeleton from '@components/Skeleton';
 import EmptyState from '@components/EmptyState';
 import JobTimeline from '@components/JobTimeline';
 import RateCustomerCard from '@components/RateCustomerCard';
+import { toast } from '@components/Toast';
 
 // Opens the native Maps app for turn-by-turn directions. Background location
 // tracking keeps running as an OS service whichever app is in front.
-function openNavigation(lat, lng) {
-  if (lat == null || lng == null) return;
+// Addresses saved without a map pin navigate by their text instead.
+function openNavigation(address) {
+  const { lat, lng, fullAddress } = address ?? {};
+  const hasPin = lat != null && lng != null;
+  const text = fullAddress && fullAddress !== 'Address on file' ? fullAddress : null;
+  if (!hasPin && !text) {
+    toast.error("Can't open Maps", 'This job has no address location.');
+    return;
+  }
+  const dest = hasPin ? `${lat},${lng}` : encodeURIComponent(text);
   const appUrl = Platform.select({
-    ios: `maps://?daddr=${lat},${lng}&dirflg=d`,
-    android: `google.navigation:q=${lat},${lng}`,
+    ios: `maps://?daddr=${dest}&dirflg=d`,
+    android: `google.navigation:q=${dest}&mode=d`,
   });
-  const webFallback = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
+  const webFallback = `https://www.google.com/maps/dir/?api=1&destination=${dest}&travelmode=driving`;
   Linking.openURL(appUrl).catch(() => Linking.openURL(webFallback));
 }
 
@@ -77,6 +86,10 @@ export default function JobDetailScreen() {
   const [helpLoading,   setHelpLoading]   = useState(false);
   // Road distance/ETA from the backend — the same cached value the customer sees.
   const [eta,           setEta]           = useState(null);
+  // "I'm on my way" sent the worker to grant location first — open Maps once they're back.
+  const navAfterPermission = useRef(false);
+  const jobRef = useRef(null);
+  jobRef.current = job;
 
   const fetchEta = useCallback(async () => {
     if (!token || !id) return;
@@ -108,6 +121,14 @@ export default function JobDetailScreen() {
     useCallback(() => {
       setLoading(true);
       fetchJob().finally(() => setLoading(false));
+      if (navAfterPermission.current) {
+        navAfterPermission.current = false;
+        startLocationTracking({ silent: true, enRoute: true }).catch(() => false).then((ok) => {
+          if (ok) toast.success('Sharing live location', 'The customer can now track you.');
+          else toast.warning('Location is off', "The customer can't see you on the map until you allow it.");
+          openNavigation(jobRef.current?.address);
+        });
+      }
     }, [fetchJob])
   );
 
@@ -131,8 +152,16 @@ export default function JobDetailScreen() {
       await api.patch(`/bookings/${id}/status`, { status: nextStatus }, token);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       if (nextStatus === 'EN_ROUTE') {
-        await startLocationTracking({ enRoute: true }).catch(() => {});
-        openNavigation(job?.address?.lat, job?.address?.lng);
+        // Start sharing before Maps takes over: Android won't start the location
+        // service once this app is in the background. Without permission the
+        // worker goes to the explainer and Maps opens when they come back.
+        const sharing = await startLocationTracking({ enRoute: true }).catch(() => false);
+        if (sharing) {
+          toast.success("You're on your way", 'Live location is shared with the customer.');
+          openNavigation(job?.address);
+        } else {
+          navAfterPermission.current = true;
+        }
       }
       await fetchJob();
     } catch (e) {
@@ -149,6 +178,7 @@ export default function JobDetailScreen() {
       await api.post(`/bookings/${id}/otp-verify`, { otp: code }, token);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       setShowOtpSheet(false);
+      toast.success('Job started', 'Door code verified.');
       // Arrived: drop back to the slower cadence unless another job is still en route.
       reconcileTracking(token).catch(() => {});
       await fetchJob();
@@ -187,6 +217,7 @@ export default function JobDetailScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       // Done on our side → free for the next job; GPS only if another job needs it.
       await reconcileTracking(token).catch(() => {});
+      toast.success('Marked as done', 'Waiting for the customer to confirm.');
       setProofUris([]);
       await fetchJob();
     } catch (e) {
@@ -201,6 +232,7 @@ export default function JobDetailScreen() {
     try {
       await api.patch(`/bookings/${id}/accept`, {}, token);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      toast.success('Job accepted', `${job?.service?.name ?? 'Job'} • ${whenLabel(job?.scheduledAt)}`);
       await fetchJob();
     } catch (e) {
       alertError('Job unavailable', e, 'Another partner may have already accepted it.');
@@ -273,8 +305,11 @@ export default function JobDetailScreen() {
         {header}
         <EmptyState
           icon="alert-circle-outline"
-          title="Couldn't load this job"
-          subtitle={friendlyError(loadError, 'Check your connection and try again.') ?? ''}
+          // A request opened from a push may already be taken or cancelled.
+          title={loadError?.status === 403 || loadError?.status === 404 ? 'Job no longer available' : "Couldn't load this job"}
+          subtitle={loadError?.status === 403 || loadError?.status === 404
+            ? 'Another partner accepted it or the customer cancelled.'
+            : friendlyError(loadError, 'Check your connection and try again.') ?? ''}
           cta={{ label: 'Retry', onPress: () => { setLoading(true); fetchJob().finally(() => setLoading(false)); } }}
         />
       </SafeAreaView>
@@ -283,7 +318,7 @@ export default function JobDetailScreen() {
 
   const isAssigned = OPEN_STATUSES.includes(job.status) || job.status === 'COMPLETED';
   const isOpen = OPEN_STATUSES.includes(job.status);
-  const hasCoords = job.address.lat != null && job.address.lng != null;
+  const canNavigate = (job.address.lat != null && job.address.lng != null) || job.address.fullAddress !== 'Address on file';
   const actionColor = action ? (Colors[action.colorKey] ?? Colors.primary) : null;
 
   return (
@@ -370,7 +405,7 @@ export default function JobDetailScreen() {
             <View style={styles.quickRow}>
               <QuickAction icon="call-outline" label={calling ? 'Calling…' : 'Call'} onPress={callCustomer} loading={calling} Colors={Colors} />
               <QuickAction icon="chatbubble-ellipses-outline" label="Chat" onPress={() => router.push({ pathname: '/chat/[id]', params: { id, name: job.customerName } })} Colors={Colors} />
-              {hasCoords && <QuickAction icon="navigate-outline" label="Navigate" onPress={() => openNavigation(job.address.lat, job.address.lng)} Colors={Colors} />}
+              {canNavigate && <QuickAction icon="navigate-outline" label="Navigate" onPress={() => openNavigation(job.address)} Colors={Colors} />}
             </View>
           )}
         </View>

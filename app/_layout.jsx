@@ -7,23 +7,28 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import Notifications from '@utils/notifications';
 import { isViewingChat } from '@utils/chatPresence';
+import { openNotification, routeForNotification } from '@utils/notificationRouting';
 import { router } from 'expo-router';
 import { AuthProvider } from '@context/auth';
 import { ThemeProvider, useTheme } from '@context/theme';
 import { ProviderProvider } from '@context/provider';
 import SplashOverlay from '@components/Splash';
 import OfflineBanner from '@components/OfflineBanner';
+import ToastHost, { toast } from '@components/Toast';
 import '@utils/location';
 
+// While the app is open a push shows as the in-app toast (see AppContent) instead
+// of the system banner; it still goes to the notification tray. Job requests
+// keep their sound. A chat push for the chat already on screen is hidden.
 Notifications?.setNotificationHandler({
-  // Hide a chat push for the chat that's already on screen.
   handleNotification: async (notification) => {
     const data = notification?.request?.content?.data ?? {};
     const hide = data.type === 'new_message' && isViewingChat(data.booking_id);
+    const isJob = data.type === 'job_available' || data.type === 'instant_job';
     return {
-      shouldShowBanner: !hide,
+      shouldShowBanner: false,
       shouldShowList:   !hide,
-      shouldPlaySound:  !hide,
+      shouldPlaySound:  isJob,
       shouldSetBadge:   !hide,
     };
   },
@@ -46,23 +51,27 @@ function AppContent() {
   const { isDark } = useTheme();
 
   useEffect(() => {
-    if (!Notifications) return;
-    const sub = Notifications.addNotificationResponseReceivedListener(response => {
-      const data = response.notification.request.content.data ?? {};
-      if (data.type === 'provider_approved' || data.type === 'account_approved' || data.type === 'photo_reset') {
-        router.replace('/'); // re-run the auth gate → straight into the app (or the photo retake)
-      } else if (data.type === 'support_reply' && data.ticket_id) {
-        router.push(`/support/${data.ticket_id}`);
-      } else if (data.type === 'new_message' && data.booking_id) {
-        router.push({ pathname: '/chat/[id]', params: { id: data.booking_id } });
-      } else if (data.booking_id) {
-        // New job requests open on the job itself, where the worker can accept.
-        router.push(`/job/${data.booking_id}`);
-      } else {
-        router.push('/notifications');
-      }
+    if (!Notifications) return undefined;
+    // Tapped while the app was closed — opened by the jobs tab once the auth gate is done.
+    Notifications.getLastNotificationResponseAsync()
+      .then(r => r && openNotification(r, { coldStart: true }))
+      .catch(() => {});
+    const tapSub = Notifications.addNotificationResponseReceivedListener(r => openNotification(r));
+    // Foreground push → in-app toast; tapping it goes where the push would.
+    const recvSub = Notifications.addNotificationReceivedListener(n => {
+      const { title, body, data = {} } = n.request.content ?? {};
+      if (data.type === 'new_message' && isViewingChat(data.booking_id)) return;
+      const target = routeForNotification(data);
+      const kind = data.type === 'job_available' || data.type === 'instant_job' ? 'warning'
+        : /cancel|fail|reject|suspend/i.test(`${data.type} ${data.status ?? ''}`) ? 'error'
+        : /paid|payment|payout|approved|credit/i.test(data.type ?? '') ? 'success'
+        : 'info';
+      toast.show({
+        type: kind, title, message: body,
+        onPress: () => (target === null ? router.replace('/') : router.push(target)),
+      });
     });
-    return () => sub.remove();
+    return () => { tapSub.remove(); recvSub.remove(); };
   }, []);
 
   return (
@@ -83,6 +92,7 @@ function AppContent() {
         <Stack.Screen name="permissions"          options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
       </Stack>
       <OfflineBanner />
+      <ToastHost />
       {showSplash && <SplashOverlay onDone={() => setShowSplash(false)} />}
     </>
   );

@@ -139,7 +139,11 @@ Always shrink photos with `compressImage()` (`utils/image.js`, ~1600px JPEG) bef
 
 4. **Screen refresh on focus**: Job screens use `useFocusEffect(useCallback(() => { fetchJob(); }, [id]))` to reload data when navigating back.
 
-5. **Push notifications**: `app/_layout.jsx` routes on notification tap. `app/(tabs)/index.jsx` listens for foreground `job_request` notifications to show `JobRequestModal`.
+5. **Push notifications**: tap routing lives in `utils/notificationRouting.js` (a tap that cold-starts the app is
+   opened by the jobs tab once the auth gate is done). While the app is open, pushes show as the in-app toast, not the
+   system banner. `utils/useJobFeed.js` refreshes on `job_available` and the jobs tab shows `JobRequestModal`.
+   For success or event feedback use `toast.success/info/warning/error(title, message, { onPress })` from
+   `components/Toast.jsx`. Keep `Alert.alert` for confirmations and blocking errors.
 
 6. **Token refresh**: Handled silently in `utils/api.js` (15-minute access tokens) — screens never deal with it.
 

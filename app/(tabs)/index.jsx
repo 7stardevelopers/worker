@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import {
   View, Text, ScrollView, RefreshControl, StyleSheet, TouchableOpacity, Vibration,
 } from 'react-native';
@@ -13,13 +13,15 @@ import { FontSize, FontWeight, Spacing, Radius } from '@constants/theme';
 import { alertError } from '@utils/errors';
 import { api } from '@utils/api';
 import { formatINR, fromPaise } from '@utils/money';
-import { groupJobs, todaySummary, isLiveJob } from '@utils/jobs';
+import { groupJobs, todaySummary, isLiveJob, whenLabel } from '@utils/jobs';
 import useJobFeed from '@utils/useJobFeed';
+import { consumePendingRoute } from '@utils/notificationRouting';
 import useScreenFocus from '@utils/useScreenFocus';
 import JobCard from '@components/JobCard';
 import ActiveJobCard from '@components/ActiveJobCard';
 import OnlineToggle from '@components/OnlineToggle';
 import JobRequestModal from '@components/JobRequestModal';
+import { toast } from '@components/Toast';
 import Skeleton from '@components/Skeleton';
 import EmptyState from '@components/EmptyState';
 
@@ -56,6 +58,9 @@ export default function JobsScreen() {
   const [declined,    setDeclined]    = useState(() => new Set());
   const [refreshing,  setRefreshing]  = useState(false);
   const [unread,      setUnread]      = useState(0);
+
+  // A "New job near you" push tapped while the app was closed opens that job now.
+  useEffect(() => { consumePendingRoute(); }, []);
 
   const hasLiveJob = useCallback(list => list.some(isLiveJob), []);
 
@@ -103,6 +108,7 @@ export default function JobsScreen() {
       await api.patch(`/bookings/${incomingJob.id}/accept`, {}, token);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       const id = incomingJob.id;
+      toast.success('Job accepted', `${incomingJob.service?.name ?? 'Job'} • ${whenLabel(incomingJob.scheduledAt)}`);
       setIncomingJob(null);
       refresh();
       router.push(`/job/${id}`);

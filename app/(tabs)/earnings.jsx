@@ -18,6 +18,7 @@ import EarningsChart from '@components/EarningsChart';
 import EmptyState from '@components/EmptyState';
 import Skeleton from '@components/Skeleton';
 import RazorpayCheckoutModal from '@components/RazorpayCheckoutModal';
+import { toast } from '@components/Toast';
 
 const TYPE_CONFIG = {
   BOOKING:           { label: 'Job earning',             icon: 'briefcase-outline',     color: '#10B981', sign: '+' },
@@ -130,7 +131,7 @@ export default function EarningsScreen() {
             try {
               // The backend takes paise.
               await api.post('/payments/payout-request', { amount: toPaise(amount) }, token);
-              Alert.alert('Payout Requested', 'Your payout will be processed within 2-3 business days.');
+              toast.success('Payout requested', 'It will be processed within 2-3 business days.');
               await load();
             } catch (e) {
               alertError('Payout failed', e);
@@ -159,7 +160,7 @@ export default function EarningsScreen() {
     setPayingDues(true);
     try {
       await api.post('/providers/me/dues/verify', result, token);
-      Alert.alert('Dues cleared', 'Thanks! You can take new jobs again.');
+      toast.success('Dues cleared', 'Thanks! You can take new jobs again.');
     } catch (e) {
       alertError('Payment verification failed', e);
     } finally {

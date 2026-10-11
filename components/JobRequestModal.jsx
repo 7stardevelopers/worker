@@ -5,6 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '@context/theme';
 import { FontSize, FontWeight, Spacing, Radius, Shadow } from '@constants/theme';
 import { formatINR } from '@utils/money';
+import { whenLabel } from '@utils/jobs';
 import PaymentBadge from '@components/PaymentBadge';
 
 const COUNTDOWN = 30;
@@ -75,9 +76,15 @@ export default function JobRequestModal({ visible, job, onAccept, onReject, onEx
                 </Text>
               </View>
               <View style={styles.metaRow}>
+                <Ionicons name="calendar-outline" size={14} color={Colors.primary} />
+                <Text style={[styles.metaText, styles.whenText, { color: Colors.foreground }]}>
+                  {whenLabel(job.scheduledAt)}
+                </Text>
+              </View>
+              <View style={styles.metaRow}>
                 <Ionicons name="time-outline" size={14} color={Colors.mutedForeground} />
                 <Text style={[styles.metaText, { color: Colors.mutedForeground }]}>
-                  {job.service?.duration ?? 60} min
+                  ~{job.service?.duration ?? 60} min job
                 </Text>
               </View>
             </View>
@@ -123,6 +130,7 @@ const styles = StyleSheet.create({
   jobMeta:       { gap: 6 },
   metaRow:       { flexDirection: 'row', alignItems: 'flex-start', gap: 6 },
   metaText:      { fontSize: FontSize.sm, flex: 1 },
+  whenText:      { fontWeight: FontWeight.semibold },
   earningBadge:  { borderRadius: Radius.md, borderWidth: 1, padding: Spacing.md, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: Spacing.sm },
   earningLabel:  { fontSize: FontSize.sm },
   earningAmount: { fontSize: FontSize.h2, fontWeight: FontWeight.bold },
