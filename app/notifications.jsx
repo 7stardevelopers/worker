@@ -11,6 +11,7 @@ import { FontSize, FontWeight, Spacing, Radius } from '@constants/theme';
 import { api } from '@utils/api';
 import { normalizeNotification } from '@utils/normalize';
 import EmptyState from '@components/EmptyState';
+import { routeForNotification } from '@utils/notificationRouting';
 
 export default function NotificationsScreen() {
   const { Colors } = useTheme();
@@ -74,7 +75,12 @@ export default function NotificationsScreen() {
         }
         renderItem={({ item }) => (
           <TouchableOpacity
-            onPress={() => markRead(item)}
+            onPress={() => {
+              markRead(item);
+              // A job notification opens the job, where it can be accepted.
+              const target = routeForNotification(item.data);
+              if (target && target !== '/notifications') router.push(target);
+            }}
             activeOpacity={0.75}
             style={[
               styles.item,
@@ -92,6 +98,7 @@ export default function NotificationsScreen() {
               <Text style={[styles.notifBody, { color: Colors.mutedForeground }]} numberOfLines={2}>{item.body}</Text>
               <Text style={[styles.time, { color: Colors.subtleForeground }]}>{item.time}</Text>
             </View>
+            {item.data?.booking_id ? <Ionicons name="chevron-forward" size={16} color={Colors.subtleForeground} style={styles.chevron} /> : null}
             {!item.read && <View style={[styles.unreadDot, { backgroundColor: Colors.primary }]} />}
           </TouchableOpacity>
         )}
@@ -115,4 +122,5 @@ const styles = StyleSheet.create({
   notifBody:  { fontSize: FontSize.sm, lineHeight: 20 },
   time:       { fontSize: FontSize.xs },
   unreadDot:  { width: 8, height: 8, borderRadius: 4, marginTop: 4 },
+  chevron:    { alignSelf: 'center' },
 });

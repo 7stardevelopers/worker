@@ -71,22 +71,57 @@ export function normalizeNotification(n) {
     system:   { icon: 'information-circle-outline', color: '#3B82F6' },
     payment:  { icon: 'card-outline',               color: '#10B981' },
   };
-  const cfg = NOTIF_CONFIG[n.type] ?? NOTIF_CONFIG.system;
+  // Backend types are e.g. job_available / booking_update / payment_confirmed.
+  const kind = /job|booking|instant/.test(n.type ?? '') ? 'booking'
+    : /pay|payout|dues/.test(n.type ?? '') ? 'payment'
+    : /track|navigate/.test(n.type ?? '') ? 'tracking'
+    : n.type;
+  const cfg = NOTIF_CONFIG[kind] ?? NOTIF_CONFIG.system;
+  let data = n.data ?? {};
+  if (typeof data === 'string') { try { data = JSON.parse(data); } catch { data = {}; } }
   return {
     id: n.notification_id,
     type: n.type,
+    data: { type: n.type, ...data },
     icon: cfg.icon,
     color: cfg.color,
     read: !!n.read_ind,
     title: n.title,
     body: n.body,
-    time: timeAgo(n.created_at),
+    time: notifTimeLabel(n.created_at),
   };
+}
+
+/** Epoch ms for an API timestamp. The DB stores naive UTC — without a zone suffix it must be read as UTC, not local time. */
+export function parseUtcMs(v) {
+  if (!v) return null;
+  // Python isoformat() gives microseconds; Hermes only parses up to milliseconds.
+  let s = String(v).trim().replace(' ', 'T').replace(/(\.\d{3})\d+/, '$1');
+  if (!/(Z|[+-]\d{2}:?\d{2})$/.test(s)) s += 'Z';
+  const ms = Date.parse(s);
+  return Number.isNaN(ms) ? null : ms;
+}
+
+/** "4:32 PM · 5 min ago", "Yesterday, 9:10 AM", "12 Oct, 4:32 PM" — the real time a notification arrived. */
+export function notifTimeLabel(value) {
+  const ms = parseUtcMs(value);
+  if (ms == null) return '';
+  const d = new Date(ms);
+  const clock = d.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit', hour12: true });
+  const startOfToday = new Date(); startOfToday.setHours(0, 0, 0, 0);
+  if (ms >= startOfToday.getTime()) {
+    const mins = Math.max(0, Math.floor((Date.now() - ms) / 60000));
+    const ago = mins < 1 ? 'Just now' : mins < 60 ? `${mins} min ago` : null;
+    return ago ? `${clock} · ${ago}` : `Today, ${clock}`;
+  }
+  if (ms >= startOfToday.getTime() - 86400000) return `Yesterday, ${clock}`;
+  const sameYear = d.getFullYear() === new Date().getFullYear();
+  return `${d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', ...(sameYear ? {} : { year: 'numeric' }) })}, ${clock}`;
 }
 
 export function timeAgo(dateStr) {
   if (!dateStr) return '';
-  const diff = (Date.now() - new Date(dateStr).getTime()) / 1000;
+  const diff = (Date.now() - (parseUtcMs(dateStr) ?? Date.now())) / 1000;
   if (diff < 60) return 'Just now';
   if (diff < 3600) return `${Math.floor(diff / 60)} min ago`;
   if (diff < 86400) return `${Math.floor(diff / 3600)} hours ago`;
