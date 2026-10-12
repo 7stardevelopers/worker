@@ -1,3 +1,4 @@
+import { Platform } from 'react-native';
 import * as TaskManager from 'expo-task-manager';
 import * as Location from 'expo-location';
 import Constants from 'expo-constants';
@@ -12,6 +13,11 @@ export const LOCATION_TASK = 'WORKER_LOCATION_TASK';
 // ERR_LOCATION_INFO_PLIST. In Expo Go we fall back to foreground-only
 // tracking (updates while the app is open). Dev/preview/store builds keep
 // full background tracking.
+//
+// Android: sharing runs as a location foreground service (sticky notification)
+// started while the app is open. That keeps getting fixes in the background with
+// "while using the app" permission — no "Allow all the time" needed — and stops
+// when the worker closes the app (swipes it away).
 export const IS_EXPO_GO = Constants.executionEnvironment === 'storeClient';
 
 let foregroundSub = null;
@@ -48,11 +54,11 @@ TaskManager.defineTask(LOCATION_TASK, async ({ data, error }) => {
   await sendLocation(loc);
 });
 
-/** True when the permissions this build needs are granted (foreground only in Expo Go). */
+/** True when the permissions this build needs are granted (foreground only in Expo Go / Android). */
 export async function hasTrackingPermission() {
   const fg = await Location.getForegroundPermissionsAsync();
   if (fg.status !== 'granted') return false;
-  if (IS_EXPO_GO) return true;
+  if (IS_EXPO_GO || Platform.OS === 'android') return true;
   const bg = await Location.getBackgroundPermissionsAsync();
   return bg.status === 'granted';
 }
@@ -64,8 +70,9 @@ export async function hasTrackingPermission() {
 export async function requestTrackingPermission() {
   const fg = await Location.requestForegroundPermissionsAsync();
   if (fg.status !== 'granted') return { granted: false, blocked: !fg.canAskAgain };
-  if (IS_EXPO_GO) return { granted: true, blocked: false };
-  // Android 11+ sends the worker to Settings for "Allow all the time".
+  // Android: the foreground service covers the background — don't send the worker
+  // to Settings for "Allow all the time". iOS still needs "Always".
+  if (IS_EXPO_GO || Platform.OS === 'android') return { granted: true, blocked: false };
   const bg = await Location.requestBackgroundPermissionsAsync();
   if (bg.status !== 'granted') return { granted: false, blocked: !bg.canAskAgain };
   return { granted: true, blocked: false };
@@ -135,11 +142,11 @@ export async function startLocationTracking({ silent = false, enRoute = false, k
     foregroundService: {
       notificationTitle: APP_NAME,
       notificationBody: 'Sharing your location with the customer.',
-      // Keep sharing after the worker swipes the app away (Android) so the
-      // customer doesn't see a frozen pin mid-trip. The task stops itself via
-      // reconcileTracking / stopLocationTracking once no job needs it; iOS
-      // still stops on force-quit.
-      killServiceOnDestroy: false,
+      // Shares while the app is open or in the background; closing the app
+      // (swipe away) stops it. The customer then sees "Last seen …", the
+      // backend nudges the worker after 10 min, and reopening the app resumes
+      // via reconcileTracking.
+      killServiceOnDestroy: true,
     },
   });
   currentMode = mode;

@@ -141,7 +141,7 @@ export default function ProfileScreen() {
           <Row icon="card-outline"       label="Bank Account"   sub={profile?.bank_account_number ? `****${(profile.bank_account_number).slice(-4)}` : 'Not set'} onPress={() => router.push('/onboarding/bank?mode=edit')} />
           <Row icon="headset-outline"    label="Support"        onPress={() => router.push('/support/index')} />
           <Row icon="notifications-outline" label="Notifications" onPress={() => router.push('/notifications')} />
-          <Row icon="location-outline"   label="Location access" sub={locationOk ? 'Allowed all the time' : 'Needed to go online'} onPress={() => router.push('/permissions')} />
+          <Row icon="location-outline"   label="Location access" sub={locationOk ? 'Allowed' : 'Needed to go online'} onPress={() => router.push('/permissions')} />
           <Row
             icon={isDark ? 'moon-outline' : 'sunny-outline'}
             label="Dark mode"

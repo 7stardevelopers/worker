@@ -57,7 +57,8 @@
           "locationAlwaysAndWhenInUsePermission": "MULTIOKS Partner needs your location to show customers where you are during a job.",
           "locationAlwaysPermission": "MULTIOKS Partner uses background location to track your route during active jobs.",
           "isIosBackgroundLocationEnabled": true,
-          "isAndroidBackgroundLocationEnabled": true
+          "isAndroidBackgroundLocationEnabled": false,
+          "isAndroidForegroundServiceEnabled": true
         }
       ],
       [

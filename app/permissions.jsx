@@ -12,14 +12,14 @@ import { FontSize, FontWeight, Spacing, Radius } from '@constants/theme';
 
 const REASONS = [
   { icon: 'navigate-outline',      title: 'Show customers you\'re on the way', body: 'Your live position appears on the customer\'s map while you travel to them and while you work.' },
-  { icon: 'briefcase-outline',     title: 'Keep tracking during a job',        body: 'Location keeps updating in the background — even with Maps open — but only while you have an active job.' },
+  { icon: 'briefcase-outline',     title: 'Keep tracking during a job',        body: 'Location keeps updating while the app is open or in the background — even with Maps open — but only while you have an active job. Closing the app stops sharing.' },
   { icon: 'shield-checkmark-outline', title: 'Stops when the job ends',      body: 'Tracking stops automatically when the job is completed or cancelled, when you log out, or when you fully close the app.' },
 ];
 
 /**
- * Prominent disclosure shown before the OS location prompts (required by
- * Google Play for background location). Opened when the worker tries to go
- * online or start a trip without "Allow all the time".
+ * Prominent disclosure shown before the OS location prompts. Opened when the
+ * worker tries to go online or start a trip without location permission
+ * ("While using the app" on Android, "Always" on iOS).
  * `?then=online` → go online automatically once permission is granted.
  */
 export default function PermissionsScreen() {
@@ -54,7 +54,7 @@ export default function PermissionsScreen() {
         </View>
         <Text style={[styles.title, { color: Colors.foreground }]}>Allow location access</Text>
         <Text style={[styles.sub, { color: Colors.mutedForeground }]}>
-          {APP_NAME} uses your location, including in the background, so customers can track their expert.
+          {APP_NAME} uses your location while the app is open or in the background, so customers can track their expert.
         </Text>
 
         <View style={styles.reasons}>
@@ -82,7 +82,7 @@ export default function PermissionsScreen() {
           <View style={[styles.tip, { backgroundColor: Colors.info + '12', borderColor: Colors.info + '35' }]}>
             <Ionicons name="information-circle-outline" size={18} color={Colors.info} />
             <Text style={[styles.tipText, { color: Colors.foreground }]}>
-              On the next screen choose <Text style={styles.bold}>"Allow all the time"</Text>.
+              On the next screen choose <Text style={styles.bold}>"While using the app"</Text>.
             </Text>
           </View>
         )}
@@ -92,7 +92,7 @@ export default function PermissionsScreen() {
         {blocked ? (
           <>
             <Text style={[styles.blocked, { color: Colors.warning }]}>
-              Location access is turned off for {APP_NAME}. Enable it in Settings → Location → "Allow all the time".
+              Location access is turned off for {APP_NAME}. Enable it in Settings → Location → {Platform.OS === 'android' ? '"Allow only while using the app"' : '"Always"'}.
             </Text>
             <TouchableOpacity style={styles.btn} onPress={() => Linking.openSettings()} activeOpacity={0.85}>
               <LinearGradient colors={Colors.gradientPrimary} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.btnGrad}>
