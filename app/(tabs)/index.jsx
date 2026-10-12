@@ -24,6 +24,7 @@ import JobRequestModal from '@components/JobRequestModal';
 import { toast } from '@components/Toast';
 import Skeleton from '@components/Skeleton';
 import EmptyState from '@components/EmptyState';
+import BatteryBanner from '@components/BatteryBanner';
 
 function greeting() {
   const h = new Date().getHours();
@@ -177,6 +178,9 @@ export default function JobsScreen() {
           </TouchableOpacity>
         )}
 
+        {/* Online = live location may be needed; battery savers would kill it in the background. */}
+        {isAvailable && <BatteryBanner style={styles.batteryBanner} />}
+
         {owed > 0 && (
           <TouchableOpacity
             style={[styles.banner, { backgroundColor: Colors.error + '14', borderColor: Colors.error + '40' }]}
@@ -267,6 +271,7 @@ const styles = StyleSheet.create({
   banner:       { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginHorizontal: Spacing.base, marginTop: Spacing.sm, padding: Spacing.md, borderRadius: Radius.md, borderWidth: 1 },
   bannerText:   { flex: 1, fontSize: FontSize.sm },
   bannerCta:    { fontSize: FontSize.sm, fontWeight: FontWeight.bold },
+  batteryBanner: { marginHorizontal: Spacing.base, marginTop: Spacing.sm },
   today:        { flexDirection: 'row', marginHorizontal: Spacing.base, marginTop: Spacing.md, borderRadius: Radius.lg, borderWidth: StyleSheet.hairlineWidth, paddingVertical: Spacing.md },
   todayItem:    { flex: 1, alignItems: 'center', gap: 2 },
   todayValue:   { fontSize: FontSize.h3, fontWeight: FontWeight.bold },

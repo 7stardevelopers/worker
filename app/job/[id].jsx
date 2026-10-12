@@ -28,6 +28,7 @@ import Skeleton from '@components/Skeleton';
 import EmptyState from '@components/EmptyState';
 import JobTimeline from '@components/JobTimeline';
 import RateCustomerCard from '@components/RateCustomerCard';
+import BatteryBanner from '@components/BatteryBanner';
 import { toast } from '@components/Toast';
 
 // Opens the native Maps app for turn-by-turn directions. Background location
@@ -329,6 +330,10 @@ export default function JobDetailScreen() {
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} colors={[Colors.primary]} />}
       >
+        {needsTracking({ status: job.status, scheduled_at: job.scheduledAt, providerDoneAt: job.providerDoneAt }) && (
+          <BatteryBanner style={styles.batteryBanner} />
+        )}
+
         {/* Earning */}
         <View style={[styles.heroCard, Shadow.lg]}>
           <LinearGradient colors={Colors.gradientPrimary} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.heroGrad}>
@@ -543,6 +548,7 @@ const styles = StyleSheet.create({
   heroAmount:    { color: '#FFF', fontSize: 44, fontWeight: FontWeight.bold, letterSpacing: -1 },
   heroTotal:     { color: 'rgba(255,255,255,0.65)', fontSize: FontSize.xs },
   paymentRow:    { marginHorizontal: Spacing.base },
+  batteryBanner: { marginHorizontal: Spacing.base },
   banner:        { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, marginHorizontal: Spacing.base, padding: Spacing.md, borderRadius: Radius.lg, borderWidth: 1 },
   bannerTitle:   { fontSize: FontSize.body, fontWeight: FontWeight.semibold },
   bannerSub:     { fontSize: FontSize.xs, marginTop: 2 },
