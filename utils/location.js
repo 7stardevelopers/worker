@@ -4,6 +4,7 @@ import * as Location from 'expo-location';
 import Constants from 'expo-constants';
 import { router } from 'expo-router';
 import { api } from '@utils/api';
+import { parseUtcMs } from '@utils/normalize';
 import { APP_NAME } from '@constants/brand';
 
 export const LOCATION_TASK = 'WORKER_LOCATION_TASK';
@@ -170,7 +171,9 @@ export function needsTracking(job) {
   if (job.provider_done_at || job.providerDoneAt) return false;
   if (LIVE_STATUSES.includes(job.status)) return true;
   if (job.status === 'ACCEPTED' && job.scheduled_at) {
-    return (new Date(job.scheduled_at) - Date.now()) / 60000 <= PRE_JOB_WINDOW_MIN;
+    // Raw API times are naive UTC ("2026-10-14 10:00:00") — parse as UTC, not device-local.
+    const at = parseUtcMs(job.scheduled_at);
+    return at != null && (at - Date.now()) / 60000 <= PRE_JOB_WINDOW_MIN;
   }
   return false;
 }

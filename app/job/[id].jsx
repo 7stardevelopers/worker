@@ -233,7 +233,9 @@ export default function JobDetailScreen() {
     try {
       await api.patch(`/bookings/${id}/accept`, {}, token);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-      toast.success('Job accepted', `${job?.service?.name ?? 'Job'} • ${whenLabel(job?.scheduledAt)}`);
+      toast.success(job?.isInstant ? 'Instant job accepted' : 'Job accepted',
+        job?.isInstant ? 'Head out now and tap "I\'m on my way".'
+          : `${job?.service?.name ?? 'Job'} • ${whenLabel(job?.scheduledAt)}`);
       await fetchJob();
     } catch (e) {
       alertError('Job unavailable', e, 'Another partner may have already accepted it.');
@@ -369,7 +371,7 @@ export default function JobDetailScreen() {
           <Text style={[styles.serviceName, { color: Colors.foreground }]}>{job.service.name}</Text>
           <View style={styles.metaRow}>
             <Ionicons name="time-outline" size={14} color={Colors.mutedForeground} />
-            <Text style={[styles.metaText, { color: Colors.mutedForeground }]}>{whenLabel(job.scheduledAt)} • ~{job.service.duration} min</Text>
+            <Text style={[styles.metaText, { color: Colors.mutedForeground }]}>{job.isInstant ? `⚡ Instant · booked ${whenLabel(job.scheduledAt)}` : whenLabel(job.scheduledAt)} • ~{job.service.duration} min</Text>
           </View>
           {job.items.length > 0 && (
             <View style={[styles.items, { borderTopColor: Colors.border }]}>

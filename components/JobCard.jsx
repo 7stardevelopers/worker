@@ -17,11 +17,13 @@ export default function JobCard({ job }) {
   const statusColor = Colors.status[job.status] ?? Colors.mutedForeground;
   const earning = job.providerEarning ?? (job.totalAmount - (job.platformFee ?? 0));
 
-  const scheduled = job.scheduledAt
-    ? new Date(job.scheduledAt).toLocaleString('en-IN', {
-        day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
-      })
-    : '';
+  const instantRequest = job.isInstant && job.status === 'PENDING';
+  const scheduled = instantRequest ? 'Now — customer is waiting'
+    : job.scheduledAt
+      ? new Date(job.scheduledAt).toLocaleString('en-IN', {
+          day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
+        })
+      : '';
 
   return (
     <TouchableOpacity
@@ -50,7 +52,14 @@ export default function JobCard({ job }) {
             </Text>
           </View>
         </View>
-        <StatusPill status={job.status} small />
+        {instantRequest ? (
+          <View style={[styles.instantPill, { backgroundColor: Colors.warning + '22' }]}>
+            <Ionicons name="flash" size={11} color={Colors.warning} />
+            <Text style={[styles.instantPillText, { color: Colors.warning }]}>Instant</Text>
+          </View>
+        ) : (
+          <StatusPill status={job.status} small />
+        )}
       </View>
 
       <View style={[styles.divider, { backgroundColor: Colors.border }]} />
@@ -87,6 +96,8 @@ export default function JobCard({ job }) {
 }
 
 const styles = StyleSheet.create({
+  instantPill:     { flexDirection: 'row', alignItems: 'center', gap: 3, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3 },
+  instantPillText: { fontSize: 11, fontWeight: '700' },
   card:         { borderRadius: Radius.xl, borderWidth: StyleSheet.hairlineWidth, marginHorizontal: Spacing.base, marginBottom: Spacing.md, padding: Spacing.base, overflow: 'hidden' },
   glow:         { ...StyleSheet.absoluteFillObject },
   header:       { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },

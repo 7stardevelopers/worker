@@ -5,7 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '@context/theme';
 import { FontSize, FontWeight, Spacing, Radius, Shadow } from '@constants/theme';
 import { formatINR } from '@utils/money';
-import { whenLabel } from '@utils/jobs';
+import { jobWhenLabel } from '@utils/jobs';
 import PaymentBadge from '@components/PaymentBadge';
 
 const COUNTDOWN = 30;
@@ -60,7 +60,12 @@ export default function JobRequestModal({ visible, job, onAccept, onReject, onEx
             <View style={[styles.alertIcon, { backgroundColor: Colors.warning + '20' }]}>
               <Ionicons name="flash" size={28} color={Colors.warning} />
             </View>
-            <Text style={[styles.title, { color: Colors.foreground }]}>New Job Request!</Text>
+            <Text style={[styles.title, { color: Colors.foreground }]}>{job.isInstant ? '⚡ Instant Job — Now!' : 'New Job Request!'}</Text>
+            {job.isInstant && (
+              <Text style={[styles.instantSub, { color: Colors.mutedForeground }]}>
+                A customer nearby needs an expert right away. Accept only if you can leave now.
+              </Text>
+            )}
             <Text style={[styles.countdown, { color: Colors.warning }]}>Expires in {timer}s</Text>
           </View>
 
@@ -78,7 +83,7 @@ export default function JobRequestModal({ visible, job, onAccept, onReject, onEx
               <View style={styles.metaRow}>
                 <Ionicons name="calendar-outline" size={14} color={Colors.primary} />
                 <Text style={[styles.metaText, styles.whenText, { color: Colors.foreground }]}>
-                  {whenLabel(job.scheduledAt)}
+                  {jobWhenLabel(job)}
                 </Text>
               </View>
               <View style={styles.metaRow}>
@@ -131,6 +136,7 @@ const styles = StyleSheet.create({
   metaRow:       { flexDirection: 'row', alignItems: 'flex-start', gap: 6 },
   metaText:      { fontSize: FontSize.sm, flex: 1 },
   whenText:      { fontWeight: FontWeight.semibold },
+  instantSub:    { fontSize: FontSize.sm, textAlign: 'center', marginTop: 2 },
   earningBadge:  { borderRadius: Radius.md, borderWidth: 1, padding: Spacing.md, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: Spacing.sm },
   earningLabel:  { fontSize: FontSize.sm },
   earningAmount: { fontSize: FontSize.h2, fontWeight: FontWeight.bold },

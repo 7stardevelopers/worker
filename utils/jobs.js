@@ -10,6 +10,13 @@ export const isAwaitingCustomer = j => j.status === 'IN_PROGRESS' && !!j.provide
 export const isLiveJob = j => LIVE_STATUSES.includes(j.status) && !isAwaitingCustomer(j);
 
 const byScheduled =(a, b) => new Date(a.scheduledAt) - new Date(b.scheduledAt);
+const byInstantThenScheduled = (a, b) => (b.isInstant ? 1 : 0) - (a.isInstant ? 1 : 0) || byScheduled(a, b);
+
+/** An unclaimed request the backend has stopped offering (nobody accepted in time). */
+export const isExpiredRequest = j => j.status === 'PENDING' && !!j.expiresAt && Date.parse(j.expiresAt) <= Date.now();
+
+/** "Now (instant)" for instant jobs, else the scheduled time. */
+export const jobWhenLabel = job => (job?.isInstant && job.status === 'PENDING' ? 'Now — customer is waiting' : whenLabel(job?.scheduledAt));
 const byRecent = (a, b) => new Date(b.scheduledAt ?? b.createdAt) - new Date(a.scheduledAt ?? a.createdAt);
 
 const isSameDay = (iso, day = new Date()) => !!iso && new Date(iso).toDateString() === day.toDateString();
@@ -25,7 +32,8 @@ export function groupJobs(jobs) {
   const active = open.find(isLiveJob) ?? open.find(j => !isAwaitingCustomer(j)) ?? open[0] ?? null;
   return {
     active,
-    requests: jobs.filter(j => j.status === 'PENDING').sort(byScheduled),
+    // Instant ("Now") requests first; requests past their search deadline are gone.
+    requests: jobs.filter(j => j.status === 'PENDING' && !isExpiredRequest(j)).sort(byInstantThenScheduled),
     upcoming: open.filter(j => j !== active),
     recent:   jobs.filter(j => CLOSED_STATUSES.includes(j.status)).sort(byRecent).slice(0, 10),
   };

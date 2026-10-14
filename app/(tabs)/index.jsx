@@ -72,7 +72,8 @@ export default function JobsScreen() {
       // Don't interrupt a worker who is on the way to / working at a customer's home.
       if (hasLiveJob(jobs) || declined.has(job.id)) return;
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
-      Vibration.vibrate([0, 300, 150, 300]);
+      // Instant ("Now") requests buzz longer — the customer is waiting.
+      Vibration.vibrate(job.isInstant ? [0, 500, 200, 500, 200, 500] : [0, 300, 150, 300]);
       setIncomingJob(job);
     },
   });
@@ -109,7 +110,9 @@ export default function JobsScreen() {
       await api.patch(`/bookings/${incomingJob.id}/accept`, {}, token);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       const id = incomingJob.id;
-      toast.success('Job accepted', `${incomingJob.service?.name ?? 'Job'} • ${whenLabel(incomingJob.scheduledAt)}`);
+      toast.success(incomingJob.isInstant ? 'Instant job accepted' : 'Job accepted',
+        incomingJob.isInstant ? 'Head out now and tap "I\'m on my way".'
+          : `${incomingJob.service?.name ?? 'Job'} • ${whenLabel(incomingJob.scheduledAt)}`);
       setIncomingJob(null);
       refresh();
       router.push(`/job/${id}`);
