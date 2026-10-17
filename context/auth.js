@@ -83,6 +83,7 @@ export function AuthProvider({ children }) {
     await AsyncStorage.multiRemove([ACCESS_TOKEN_KEY, REFRESH_TOKEN_KEY, USER_KEY]);
     setToken(null);
     setUser(null);
+    router.replace('/(auth)/login');
   };
 
   const updateUser = async (updates) => {

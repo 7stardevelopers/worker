@@ -1,27 +1,33 @@
 import React, { useState, useCallback } from 'react';
 import {
-  View, Text, FlatList, TouchableOpacity, StyleSheet, Alert, RefreshControl,
+  View, Text, FlatList, StyleSheet, Alert, RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect } from 'expo-router';
 import { useTheme } from '@context/theme';
 import { useAuth } from '@context/auth';
 import { useProvider } from '@context/provider';
-import { FontSize, FontWeight, Spacing, Radius, Shadow } from '@constants/theme';
+import { FontSize, FontWeight, Spacing, Radius } from '@constants/theme';
 import { api } from '@utils/api';
 import { normalizeEarning } from '@utils/normalize';
+import { formatINR } from '@utils/format';
+import ScreenHeader from '@components/ScreenHeader';
 import EarningsChart from '@components/EarningsChart';
 import EmptyState from '@components/EmptyState';
-import Skeleton from '@components/Skeleton';
+import LoadingScreen from '@components/LoadingScreen';
+import Button from '@components/Button';
 
-const TYPE_CONFIG = {
-  BOOKING:   { icon: 'briefcase-outline', color: '#10B981', sign: '+' },
-  TIP:       { icon: 'gift-outline',       color: '#F59E0B', sign: '+' },
-  BONUS:     { icon: 'star-outline',       color: '#6366F1', sign: '+' },
-  DEDUCTION: { icon: 'remove-circle-outline', color: '#EF4444', sign: '-' },
+const MIN_PAYOUT = 10000; // paise
+
+const TYPE_ICON = {
+  BOOKING:   'briefcase-outline',
+  TIP:       'gift-outline',
+  BONUS:     'ribbon-outline',
+  DEDUCTION: 'remove-circle-outline',
 };
+
+const startOfDay = d => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
 
 export default function EarningsScreen() {
   const { Colors } = useTheme();
@@ -36,24 +42,24 @@ export default function EarningsScreen() {
 
   const walletBalance = profile?.wallet_balance ?? 0;
   const bankLast4     = (profile?.bank_account_number ?? '').slice(-4);
+  const canPayout     = walletBalance >= MIN_PAYOUT;
 
   const load = useCallback(async () => {
     if (!token) return;
     try {
-      const [profileRes, earningsRes] = await Promise.all([
+      const [, earningsRes] = await Promise.all([
         fetchProfile(),
         api.get('/providers/me/earnings', token),
       ]);
       const raw = Array.isArray(earningsRes?.data?.items) ? earningsRes.data.items : [];
       setEarnings(raw.map(normalizeEarning));
 
-      // build 7-day chart data
-      const today = new Date();
+      // 7 calendar-day buckets, oldest first, last bucket = today
+      const today = startOfDay(new Date());
       const buckets = Array(7).fill(0);
       raw.forEach(e => {
-        if (e.type === 'DEDUCTION') return;
-        const d = new Date(e.created_at);
-        const dayDiff = Math.floor((today - d) / 86400000);
+        if (e.type === 'DEDUCTION' || !e.created_at) return;
+        const dayDiff = Math.round((today - startOfDay(new Date(e.created_at))) / 86400000);
         const slot = 6 - dayDiff;
         if (slot >= 0 && slot < 7) buckets[slot] += e.amount ?? 0;
       });
@@ -65,7 +71,6 @@ export default function EarningsScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      setLoading(true);
       load().finally(() => setLoading(false));
     }, [load])
   );
@@ -77,23 +82,18 @@ export default function EarningsScreen() {
   }, [load]);
 
   const handlePayoutRequest = () => {
-    if (walletBalance < 10000) {
-      Alert.alert('Minimum Payout', 'Minimum payout amount is ₹100');
-      return;
-    }
     Alert.alert(
-      'Request Payout',
-      `Request payout of ₹${(walletBalance / 100).toFixed(0)} to account ****${bankLast4}?`,
+      'Request payout',
+      `Transfer ${formatINR(walletBalance, { decimals: true })} to account ending ${bankLast4 || '----'}?`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Confirm',
-          style: 'default',
           onPress: async () => {
             setRequesting(true);
             try {
               await api.post('/payments/payout-request', { amount: walletBalance }, token);
-              Alert.alert('Payout Requested', 'Your payout will be processed within 2-3 business days.');
+              Alert.alert('Payout requested', 'Your payout will be processed within 2-3 business days.');
               await fetchProfile();
             } catch (e) {
               Alert.alert('Error', e.message);
@@ -106,121 +106,130 @@ export default function EarningsScreen() {
     );
   };
 
-  const thisWeek  = earnings.filter(e => {
-    const d = new Date(e.createdAt);
-    const now = new Date();
-    return (now - d) < 7 * 86400000 && e.type !== 'DEDUCTION';
-  }).reduce((s, e) => s + e.amount, 0);
-
-  const thisMonth = earnings.filter(e => {
-    const d = new Date(e.createdAt);
-    const now = new Date();
-    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear() && e.type !== 'DEDUCTION';
-  }).reduce((s, e) => s + e.amount, 0);
-
-  const total = earnings.filter(e => e.type !== 'DEDUCTION').reduce((s, e) => s + e.amount, 0);
+  const now = new Date();
+  const credits = earnings.filter(e => e.type !== 'DEDUCTION');
+  const thisWeek = credits
+    .filter(e => (now.getTime() - new Date(e.createdAt).getTime()) < 7 * 86400000)
+    .reduce((s, e) => s + e.amount, 0);
+  const thisMonth = credits
+    .filter(e => {
+      const d = new Date(e.createdAt);
+      return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+    })
+    .reduce((s, e) => s + e.amount, 0);
+  const total = credits.reduce((s, e) => s + e.amount, 0);
 
   return (
     <SafeAreaView style={[styles.root, { backgroundColor: Colors.background }]} edges={['top']}>
-      <FlatList
-        data={loading ? [] : earnings}
-        keyExtractor={item => item.id}
-        contentContainerStyle={styles.list}
-        showsVerticalScrollIndicator={false}
-        ListHeaderComponent={
-          <>
-            <View style={styles.header}>
-              <Text style={[styles.title, { color: Colors.foreground }]}>Earnings</Text>
-            </View>
+      <ScreenHeader large title="Earnings" />
 
-            {/* Wallet Card */}
-            <View style={[styles.walletCard, Shadow.lg]}>
-              <LinearGradient colors={['#6366F1', '#8B5CF6']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.walletGrad}>
-                <Text style={styles.walletLabel}>Wallet Balance</Text>
-                <Text style={styles.walletAmount}>₹{(walletBalance / 100).toFixed(2)}</Text>
-                <TouchableOpacity
-                  style={[styles.payoutBtn, { opacity: walletBalance >= 10000 && !requesting ? 1 : 0.5 }]}
-                  onPress={handlePayoutRequest}
-                  disabled={walletBalance < 10000 || requesting}
-                  activeOpacity={0.85}
-                >
-                  <Ionicons name="send-outline" size={16} color="#6366F1" />
-                  <Text style={styles.payoutText}>{requesting ? 'Requesting...' : 'Request Payout'}</Text>
-                </TouchableOpacity>
-              </LinearGradient>
-            </View>
-
-            {/* Summary Row */}
-            <View style={styles.summaryRow}>
-              {[
-                { label: 'This Week',  value: thisWeek  },
-                { label: 'This Month', value: thisMonth },
-                { label: 'Total',      value: total     },
-              ].map(s => (
-                <View key={s.label} style={[styles.summaryCard, { backgroundColor: Colors.surface, borderColor: Colors.border }]}>
-                  <Text style={[styles.summaryLabel, { color: Colors.mutedForeground }]}>{s.label}</Text>
-                  <Text style={[styles.summaryValue, { color: Colors.foreground }]}>₹{(s.value / 100).toFixed(0)}</Text>
-                </View>
-              ))}
-            </View>
-
-            <EarningsChart data={chartData} />
-
-            <Text style={[styles.sectionTitle, { color: Colors.foreground }]}>Transactions</Text>
-          </>
-        }
-        ListEmptyComponent={
-          loading
-            ? <View>{Array.from({ length: 5 }).map((_, i) => <Skeleton.BookingCard key={i} />)}</View>
-            : <EmptyState icon="wallet-outline" title="No earnings yet" subtitle="Completed jobs will appear here" compact />
-        }
-        renderItem={({ item }) => {
-          const cfg = TYPE_CONFIG[item.type] ?? TYPE_CONFIG.BOOKING;
-          return (
-            <View style={[styles.row, { backgroundColor: Colors.surface, borderColor: Colors.border }]}>
-              <View style={[styles.rowIcon, { backgroundColor: cfg.color + '15' }]}>
-                <Ionicons name={cfg.icon} size={18} color={cfg.color} />
-              </View>
-              <View style={styles.rowInfo}>
-                <Text style={[styles.rowTitle, { color: Colors.foreground }]}>
-                  {item.type.charAt(0) + item.type.slice(1).toLowerCase()}
+      {loading ? (
+        <LoadingScreen overlay />
+      ) : (
+        <FlatList
+          data={earnings}
+          keyExtractor={item => String(item.id)}
+          contentContainerStyle={styles.list}
+          showsVerticalScrollIndicator={false}
+          ListHeaderComponent={
+            <View style={styles.listHeader}>
+              <View style={[styles.wallet, { backgroundColor: Colors.surface, borderColor: Colors.border }]}>
+                <Text style={[styles.walletLabel, { color: Colors.mutedForeground }]}>Wallet balance</Text>
+                <Text style={[styles.walletAmount, { color: Colors.foreground }]} numberOfLines={1} adjustsFontSizeToFit>
+                  {formatINR(walletBalance, { decimals: true })}
                 </Text>
-                <Text style={[styles.rowTime, { color: Colors.mutedForeground }]}>{item.timeAgo}</Text>
+                <Button
+                  title="Request payout"
+                  onPress={handlePayoutRequest}
+                  disabled={!canPayout}
+                  loading={requesting}
+                  style={styles.payoutBtn}
+                />
+                {!canPayout ? (
+                  <Text style={[styles.walletHint, { color: Colors.subtleForeground }]}>
+                    Minimum payout is {formatINR(MIN_PAYOUT)}
+                  </Text>
+                ) : null}
               </View>
-              <Text style={[styles.rowAmount, { color: item.type === 'DEDUCTION' ? Colors.error : Colors.success }]}>
-                {cfg.sign}₹{(item.amount / 100).toFixed(0)}
-              </Text>
+
+              <View style={styles.summaryRow}>
+                {[
+                  { label: 'This week',  value: thisWeek  },
+                  { label: 'This month', value: thisMonth },
+                  { label: 'All time',   value: total     },
+                ].map(s => (
+                  <View key={s.label} style={[styles.summaryCard, { backgroundColor: Colors.surface, borderColor: Colors.border }]}>
+                    <Text style={[styles.summaryLabel, { color: Colors.mutedForeground }]} numberOfLines={1}>{s.label}</Text>
+                    <Text style={[styles.summaryValue, { color: Colors.foreground }]} numberOfLines={1} adjustsFontSizeToFit>
+                      {formatINR(s.value)}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+
+              <EarningsChart data={chartData} />
+
+              <Text style={[styles.sectionTitle, { color: Colors.foreground }]}>Transactions</Text>
             </View>
-          );
-        }}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} colors={[Colors.primary]} />
-        }
-      />
+          }
+          ListEmptyComponent={
+            <EmptyState icon="wallet-outline" title="No earnings yet" subtitle="Completed jobs will appear here." compact />
+          }
+          renderItem={({ item, index }) => {
+            const isDeduction = item.type === 'DEDUCTION';
+            const isFirst = index === 0;
+            const isLast  = index === earnings.length - 1;
+            return (
+              <View
+                style={[
+                  styles.row,
+                  { backgroundColor: Colors.surface, borderColor: Colors.border },
+                  isFirst && styles.rowFirst,
+                  isLast && styles.rowLast,
+                  !isLast && { borderBottomColor: Colors.borderLight },
+                ]}
+              >
+                <Ionicons name={TYPE_ICON[item.type] ?? TYPE_ICON.BOOKING} size={18} color={Colors.mutedForeground} />
+                <View style={styles.rowInfo}>
+                  <Text style={[styles.rowTitle, { color: Colors.foreground }]}>
+                    {item.type.charAt(0) + item.type.slice(1).toLowerCase()}
+                  </Text>
+                  <Text style={[styles.rowTime, { color: Colors.mutedForeground }]}>{item.timeAgo}</Text>
+                </View>
+                <Text style={[styles.rowAmount, { color: isDeduction ? Colors.error : Colors.success }]}>
+                  {isDeduction ? '-' : '+'}{formatINR(item.amount)}
+                </Text>
+              </View>
+            );
+          }}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} colors={[Colors.primary]} />
+          }
+        />
+      )}
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   root:         { flex: 1 },
-  list:         { paddingBottom: 100 },
-  header:       { paddingHorizontal: Spacing.base, paddingVertical: Spacing.md },
-  title:        { fontSize: FontSize.h1, fontWeight: FontWeight.bold },
-  walletCard:   { marginHorizontal: Spacing.base, marginBottom: Spacing.base, borderRadius: Radius.xl, overflow: 'hidden' },
-  walletGrad:   { padding: Spacing.xl, gap: Spacing.sm },
-  walletLabel:  { color: 'rgba(255,255,255,0.75)', fontSize: FontSize.sm },
-  walletAmount: { color: '#FFF', fontSize: 40, fontWeight: FontWeight.bold, letterSpacing: -1 },
-  payoutBtn:    { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#FFF', borderRadius: Radius.full, paddingHorizontal: Spacing.base, paddingVertical: 8, alignSelf: 'flex-start', marginTop: Spacing.sm },
-  payoutText:   { color: '#6366F1', fontSize: FontSize.sm, fontWeight: FontWeight.bold },
-  summaryRow:   { flexDirection: 'row', marginHorizontal: Spacing.base, marginBottom: Spacing.base, gap: Spacing.sm },
-  summaryCard:  { flex: 1, borderRadius: Radius.lg, borderWidth: StyleSheet.hairlineWidth, padding: Spacing.md, alignItems: 'center', gap: 4 },
+  list:         { paddingTop: Spacing.xs, paddingBottom: Spacing.xl },
+  listHeader:   { gap: Spacing.md },
+  wallet:       { marginHorizontal: Spacing.base, borderRadius: Radius.lg, borderWidth: StyleSheet.hairlineWidth, padding: Spacing.lg, gap: Spacing.xs },
+  walletLabel:  { fontSize: FontSize.sm },
+  walletAmount: { fontSize: FontSize.display + 4, fontWeight: FontWeight.bold, letterSpacing: -0.5 },
+  payoutBtn:    { marginTop: Spacing.md },
+  walletHint:   { fontSize: FontSize.xs, textAlign: 'center', marginTop: Spacing.xs },
+  summaryRow:   { flexDirection: 'row', marginHorizontal: Spacing.base, gap: Spacing.sm },
+  summaryCard:  { flex: 1, borderRadius: Radius.lg, borderWidth: StyleSheet.hairlineWidth, padding: Spacing.md, gap: Spacing.xs },
   summaryLabel: { fontSize: FontSize.xs },
-  summaryValue: { fontSize: FontSize.body, fontWeight: FontWeight.bold },
-  sectionTitle: { fontSize: FontSize.h3, fontWeight: FontWeight.bold, marginHorizontal: Spacing.base, marginTop: Spacing.base, marginBottom: Spacing.sm },
-  row:          { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, marginHorizontal: Spacing.base, marginBottom: Spacing.sm, borderRadius: Radius.lg, borderWidth: StyleSheet.hairlineWidth, padding: Spacing.md },
-  rowIcon:      { width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center' },
-  rowInfo:      { flex: 1, gap: 3 },
+  summaryValue: { fontSize: FontSize.h3, fontWeight: FontWeight.semibold },
+  sectionTitle: { fontSize: FontSize.h3, fontWeight: FontWeight.semibold, marginHorizontal: Spacing.base, marginTop: Spacing.sm, marginBottom: Spacing.xs },
+  row:          { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, marginHorizontal: Spacing.base, paddingHorizontal: Spacing.base, paddingVertical: Spacing.md, borderLeftWidth: StyleSheet.hairlineWidth, borderRightWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth },
+  rowFirst:     { borderTopWidth: StyleSheet.hairlineWidth, borderTopLeftRadius: Radius.lg, borderTopRightRadius: Radius.lg },
+  rowLast:      { borderBottomLeftRadius: Radius.lg, borderBottomRightRadius: Radius.lg },
+  rowInfo:      { flex: 1, gap: 2 },
   rowTitle:     { fontSize: FontSize.body, fontWeight: FontWeight.medium },
   rowTime:      { fontSize: FontSize.xs },
-  rowAmount:    { fontSize: FontSize.body, fontWeight: FontWeight.bold },
+  rowAmount:    { fontSize: FontSize.body, fontWeight: FontWeight.semibold },
 });

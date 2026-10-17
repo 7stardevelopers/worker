@@ -1,9 +1,8 @@
 import { useEffect } from 'react';
-import { View, ActivityIndicator } from 'react-native';
 import { router } from 'expo-router';
 import { useAuth } from '@context/auth';
 import { useProvider } from '@context/provider';
-import { DarkColors } from '@constants/theme';
+import LoadingScreen from '@components/LoadingScreen';
 
 export default function Index() {
   const { token, loading: authLoading } = useAuth();
@@ -34,9 +33,5 @@ export default function Index() {
     }
   }, [profile, profileLoaded]);
 
-  return (
-    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: DarkColors.background }}>
-      <ActivityIndicator color={DarkColors.primary} size="large" />
-    </View>
-  );
+  return <LoadingScreen brand />;
 }

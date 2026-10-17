@@ -1,23 +1,24 @@
 import React, { useState } from 'react';
-import {
-  View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, Modal,
-} from 'react-native';
+import { View, Text, ScrollView, StyleSheet, Alert, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import { useTheme } from '@context/theme';
 import { useAuth } from '@context/auth';
-import { FontSize, FontWeight, Spacing, Radius } from '@constants/theme';
+import { FontSize, Spacing, Radius } from '@constants/theme';
 import { api } from '@utils/api';
+import OnboardingHeader from '@components/OnboardingHeader';
 import DocumentUploadCard from '@components/DocumentUploadCard';
+import LoadingScreen from '@components/LoadingScreen';
+import FooterBar from '@components/FooterBar';
+import Button from '@components/Button';
 
 const DOCS = [
-  { key: 'aadhaar_front', title: 'Aadhaar Front', subtitle: 'Front side of your Aadhaar card' },
-  { key: 'aadhaar_back',  title: 'Aadhaar Back',  subtitle: 'Back side of your Aadhaar card'  },
-  { key: 'pan',           title: 'PAN Card',       subtitle: 'Your PAN card photo'              },
+  { key: 'aadhaar_front', title: 'Aadhaar (front)', subtitle: 'Front side of your Aadhaar card' },
+  { key: 'aadhaar_back',  title: 'Aadhaar (back)',  subtitle: 'Back side of your Aadhaar card'  },
+  { key: 'pan',           title: 'PAN card',        subtitle: 'A clear photo of your PAN card'  },
 ];
 
 export default function DocumentsScreen() {
@@ -34,17 +35,19 @@ export default function DocumentsScreen() {
     setFiles(prev => ({ ...prev, [key]: { uri: asset.uri, mimeType: asset.mimeType ?? 'image/jpeg' } }));
   };
 
+  const allPicked = DOCS.every(d => files[d.key]);
+
   const handleNext = async () => {
     const missing = DOCS.filter(d => !files[d.key]);
     if (missing.length > 0) {
-      Alert.alert('Required', `Please upload: ${missing.map(d => d.title).join(', ')}`);
+      Alert.alert('Required', `Please add: ${missing.map(d => d.title).join(', ')}`);
       return;
     }
     setSaving(true);
     try {
       for (let i = 0; i < DOCS.length; i++) {
         const doc = DOCS[i];
-        setUploadStatus(`Uploading ${doc.title} (${i + 1} of ${DOCS.length})...`);
+        setUploadStatus(`Uploading ${i + 1} of ${DOCS.length}`);
         const { uri, mimeType } = files[doc.key];
         const doc_type = doc.key.toUpperCase();
         const file_content = await FileSystem.readAsStringAsync(uri, {
@@ -52,36 +55,20 @@ export default function DocumentsScreen() {
         });
         await api.post('/documents/upload', { doc_type, content_type: mimeType, file_content }, token);
       }
-      setUploadStatus('Done!');
+      setSaving(false);
       router.push('/onboarding/bank');
     } catch (e) {
-      Alert.alert('Upload Failed', e.message);
-    } finally {
       setSaving(false);
+      Alert.alert('Upload failed', e.message);
+    } finally {
       setUploadStatus('');
     }
   };
 
   return (
     <SafeAreaView style={[styles.root, { backgroundColor: Colors.background }]} edges={['top']}>
-      <ScrollView contentContainerStyle={styles.scroll}>
-
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()}>
-            <Ionicons name="arrow-back" size={24} color={Colors.foreground} />
-          </TouchableOpacity>
-          <View>
-            <Text style={[styles.title, { color: Colors.foreground }]}>Upload Documents</Text>
-            <Text style={[styles.sub, { color: Colors.mutedForeground }]}>Required for verification</Text>
-          </View>
-        </View>
-
-        <View style={[styles.notice, { backgroundColor: Colors.info + '12', borderColor: Colors.info + '40' }]}>
-          <Ionicons name="information-circle-outline" size={18} color={Colors.info} />
-          <Text style={[styles.noticeText, { color: Colors.info }]}>
-            Documents are reviewed within 24 hrs. Your data is encrypted and stored securely.
-          </Text>
-        </View>
+      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+        <OnboardingHeader step={3} title="Documents" subtitle="Needed to verify your identity." />
 
         <View style={styles.docList}>
           {DOCS.map(doc => (
@@ -96,29 +83,22 @@ export default function DocumentsScreen() {
           ))}
         </View>
 
+        <View style={styles.note}>
+          <Ionicons name="lock-closed-outline" size={14} color={Colors.mutedForeground} />
+          <Text style={[styles.noteText, { color: Colors.mutedForeground }]}>
+            Documents are encrypted and reviewed within 24 hours.
+          </Text>
+        </View>
       </ScrollView>
 
-      <View style={[styles.footer, { borderTopColor: Colors.border }]}>
-        <TouchableOpacity
-          style={[styles.nextBtn, { opacity: !saving ? 1 : 0.6 }]}
-          onPress={handleNext}
-          disabled={saving}
-          activeOpacity={0.85}
-        >
-          <LinearGradient colors={Colors.gradientPrimary} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.nextGrad}>
-            <Text style={styles.nextText}>{saving ? 'Uploading...' : 'Next: Bank Details'}</Text>
-            <Ionicons name="arrow-forward" size={18} color="#FFF" />
-          </LinearGradient>
-        </TouchableOpacity>
-      </View>
+      <FooterBar>
+        <Button title="Upload and continue" onPress={handleNext} disabled={!allPicked} loading={saving} />
+      </FooterBar>
 
-      <Modal visible={saving} transparent animationType="fade" statusBarTranslucent>
-        <View style={styles.loaderOverlay}>
+      <Modal visible={saving} transparent animationType="fade" onRequestClose={() => {}}>
+        <View style={[styles.overlay, { backgroundColor: Colors.backdrop }]}>
           <View style={[styles.loaderCard, { backgroundColor: Colors.surface }]}>
-            <ActivityIndicator size="large" color={Colors.primary} />
-            <Text style={[styles.loaderTitle, { color: Colors.foreground }]}>Uploading Documents</Text>
-            <Text style={[styles.loaderSub, { color: Colors.mutedForeground }]}>{uploadStatus}</Text>
-            <Text style={[styles.loaderHint, { color: Colors.mutedForeground }]}>Please don't close the app</Text>
+            <LoadingScreen overlay label={uploadStatus || 'Uploading documents'} />
           </View>
         </View>
       </Modal>
@@ -128,20 +108,10 @@ export default function DocumentsScreen() {
 
 const styles = StyleSheet.create({
   root:       { flex: 1 },
-  scroll:     { padding: Spacing.base, paddingBottom: 120, gap: Spacing.base },
-  header:     { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, paddingBottom: Spacing.md },
-  title:      { fontSize: FontSize.h2, fontWeight: FontWeight.bold },
-  sub:        { fontSize: FontSize.sm },
-  notice:     { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.sm, borderRadius: Radius.lg, borderWidth: 1, padding: Spacing.md },
-  noticeText: { flex: 1, fontSize: FontSize.sm, lineHeight: 20 },
+  scroll:     { padding: Spacing.base, paddingTop: 0, gap: Spacing.lg },
   docList:    { gap: Spacing.sm },
-  footer:       { position: 'absolute', bottom: 0, left: 0, right: 0, padding: Spacing.base, paddingBottom: 36, borderTopWidth: StyleSheet.hairlineWidth },
-  nextBtn:      { borderRadius: Radius.lg, overflow: 'hidden', height: 56 },
-  nextGrad:     { flex: 1, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: Spacing.sm },
-  nextText:     { color: '#FFF', fontSize: FontSize.body, fontWeight: FontWeight.bold },
-  loaderOverlay:{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center', padding: Spacing.xl },
-  loaderCard:   { width: '100%', borderRadius: Radius.xl, padding: Spacing.xl, alignItems: 'center', gap: Spacing.md },
-  loaderTitle:  { fontSize: FontSize.h3, fontWeight: FontWeight.bold, textAlign: 'center' },
-  loaderSub:    { fontSize: FontSize.body, textAlign: 'center' },
-  loaderHint:   { fontSize: FontSize.sm, textAlign: 'center' },
+  note:       { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
+  noteText:   { flex: 1, fontSize: FontSize.sm, lineHeight: 18 },
+  overlay:    { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  loaderCard: { width: 200, height: 160, borderRadius: Radius.lg },
 });

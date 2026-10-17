@@ -4,12 +4,14 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { router, useFocusEffect } from 'expo-router';
+import { useFocusEffect } from 'expo-router';
 import { useTheme } from '@context/theme';
 import { useAuth } from '@context/auth';
 import { FontSize, FontWeight, Spacing, Radius } from '@constants/theme';
 import { api } from '@utils/api';
 import { normalizeNotification } from '@utils/normalize';
+import ScreenHeader from '@components/ScreenHeader';
+import LoadingScreen from '@components/LoadingScreen';
 import EmptyState from '@components/EmptyState';
 
 export default function NotificationsScreen() {
@@ -32,7 +34,6 @@ export default function NotificationsScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      setLoading(true);
       fetchNotifs().finally(() => setLoading(false));
     }, [fetchNotifs])
   );
@@ -55,64 +56,55 @@ export default function NotificationsScreen() {
 
   return (
     <SafeAreaView style={[styles.root, { backgroundColor: Colors.background }]} edges={['top']}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={24} color={Colors.foreground} />
-        </TouchableOpacity>
-        <Text style={[styles.title, { color: Colors.foreground }]}>Notifications</Text>
-      </View>
+      {loading ? <LoadingScreen overlay /> : null}
+      <ScreenHeader back title="Notifications" />
 
-      <FlatList
-        data={notifs}
-        keyExtractor={item => item.id}
-        contentContainerStyle={styles.list}
-        showsVerticalScrollIndicator={false}
-        ListEmptyComponent={
-          !loading
-            ? <EmptyState icon="notifications-outline" title="All caught up" subtitle="Your notifications will appear here" />
-            : null
-        }
-        renderItem={({ item }) => (
-          <TouchableOpacity
-            onPress={() => markRead(item)}
-            activeOpacity={0.75}
-            style={[
-              styles.item,
-              {
-                backgroundColor: item.read ? Colors.surface : Colors.primary + '10',
-                borderColor: item.read ? Colors.border : Colors.primary + '30',
-              },
-            ]}
-          >
-            <View style={[styles.iconWrap, { backgroundColor: item.color + '20' }]}>
-              <Ionicons name={item.icon} size={20} color={item.color} />
-            </View>
-            <View style={styles.body}>
-              <Text style={[styles.notifTitle, { color: Colors.foreground }]}>{item.title}</Text>
-              <Text style={[styles.notifBody, { color: Colors.mutedForeground }]} numberOfLines={2}>{item.body}</Text>
-              <Text style={[styles.time, { color: Colors.subtleForeground }]}>{item.time}</Text>
-            </View>
-            {!item.read && <View style={[styles.unreadDot, { backgroundColor: Colors.primary }]} />}
-          </TouchableOpacity>
-        )}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} colors={[Colors.primary]} />
-        }
-      />
+      {loading ? null : (
+        <FlatList
+          data={notifs}
+          keyExtractor={item => String(item.id)}
+          contentContainerStyle={styles.list}
+          showsVerticalScrollIndicator={false}
+          ListEmptyComponent={
+            <EmptyState icon="notifications-outline" title="You're all caught up" subtitle="Notifications will appear here." />
+          }
+          renderItem={({ item }) => (
+            <TouchableOpacity
+              onPress={() => markRead(item)}
+              activeOpacity={0.75}
+              style={[styles.item, { backgroundColor: Colors.surface, borderColor: Colors.border }]}
+            >
+              <Ionicons name={item.icon} size={20} color={item.read ? Colors.mutedForeground : Colors.primary} />
+              <View style={styles.body}>
+                <Text
+                  style={[styles.title, { color: Colors.foreground }, !item.read && styles.titleUnread]}
+                  numberOfLines={1}
+                >
+                  {item.title}
+                </Text>
+                <Text style={[styles.text, { color: Colors.mutedForeground }]} numberOfLines={2}>{item.body}</Text>
+                <Text style={[styles.time, { color: Colors.subtleForeground }]}>{item.time}</Text>
+              </View>
+              {!item.read ? <View style={[styles.unreadDot, { backgroundColor: Colors.primary }]} /> : null}
+            </TouchableOpacity>
+          )}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} colors={[Colors.primary]} />
+          }
+        />
+      )}
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  root:       { flex: 1 },
-  header:     { flexDirection: 'row', alignItems: 'center', padding: Spacing.base, gap: Spacing.md },
-  title:      { fontSize: FontSize.h2, fontWeight: FontWeight.bold },
-  list:       { padding: Spacing.base, gap: Spacing.sm, paddingBottom: 40 },
-  item:       { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.md, borderRadius: Radius.lg, borderWidth: StyleSheet.hairlineWidth, padding: Spacing.base },
-  iconWrap:   { width: 42, height: 42, borderRadius: 21, justifyContent: 'center', alignItems: 'center' },
-  body:       { flex: 1, gap: 3 },
-  notifTitle: { fontSize: FontSize.body, fontWeight: FontWeight.semibold },
-  notifBody:  { fontSize: FontSize.sm, lineHeight: 20 },
-  time:       { fontSize: FontSize.xs },
-  unreadDot:  { width: 8, height: 8, borderRadius: 4, marginTop: 4 },
+  root:        { flex: 1 },
+  list:        { padding: Spacing.base, paddingTop: Spacing.xs, gap: Spacing.sm, flexGrow: 1 },
+  item:        { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.md, borderRadius: Radius.lg, borderWidth: StyleSheet.hairlineWidth, padding: Spacing.base },
+  body:        { flex: 1, gap: 2 },
+  title:       { fontSize: FontSize.body, fontWeight: FontWeight.medium },
+  titleUnread: { fontWeight: FontWeight.semibold },
+  text:        { fontSize: FontSize.sm, lineHeight: 19 },
+  time:        { fontSize: FontSize.xs, marginTop: 2 },
+  unreadDot:   { width: 8, height: 8, borderRadius: 4, marginTop: 6 },
 });
