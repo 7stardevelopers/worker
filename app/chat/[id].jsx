@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View, Text, FlatList, TextInput, TouchableOpacity, StyleSheet,
-  KeyboardAvoidingView, Platform, ScrollView, AppState, ActivityIndicator,
+  KeyboardAvoidingView, ScrollView, AppState, ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -13,6 +13,8 @@ import { api, getAccessToken } from '@utils/api';
 import { alertError } from '@utils/errors';
 import { setActiveChat, clearActiveChat } from '@utils/chatPresence';
 import { FontSize, FontWeight, Spacing, Radius } from '@constants/theme';
+import LoadingScreen from '@components/LoadingScreen';
+import Button from '@components/Button';
 
 const WSS_URL = process.env.EXPO_PUBLIC_WSS_URL ?? null;
 const POLL_MS = 4000;          // while the socket is down
@@ -211,11 +213,12 @@ export default function ChatScreen() {
   };
 
   // sending → sent ✓ → delivered ✓✓ → seen ✓✓ (green)
+  const dimOnPrimary = Colors.onPrimary + 'B3';
   const tickFor = item => {
-    if (item.pending) return { name: 'time-outline', color: 'rgba(255,255,255,0.7)', label: 'Sending' };
-    if (item.seenAt) return { name: 'checkmark-done', color: '#A7F3D0', label: 'Seen' };
-    if (item.deliveredAt) return { name: 'checkmark-done', color: 'rgba(255,255,255,0.7)', label: 'Delivered' };
-    return { name: 'checkmark', color: 'rgba(255,255,255,0.7)', label: 'Sent' };
+    if (item.pending) return { name: 'time-outline', color: dimOnPrimary, label: 'Sending' };
+    if (item.seenAt) return { name: 'checkmark-done', color: Colors.onPrimary, label: 'Seen' };
+    if (item.deliveredAt) return { name: 'checkmark-done', color: dimOnPrimary, label: 'Delivered' };
+    return { name: 'checkmark', color: dimOnPrimary, label: 'Sent' };
   };
 
   const renderItem = ({ item }) => {
@@ -228,9 +231,9 @@ export default function ChatScreen() {
             ? { backgroundColor: Colors.primary, borderBottomRightRadius: 4 }
             : { backgroundColor: Colors.surface, borderColor: Colors.border, borderWidth: StyleSheet.hairlineWidth, borderBottomLeftRadius: 4 },
         ]}>
-          <Text style={[styles.bubbleText, { color: item.isOwn ? '#FFF' : Colors.foreground }]}>{item.text}</Text>
+          <Text style={[styles.bubbleText, { color: item.isOwn ? Colors.onPrimary : Colors.foreground }]}>{item.text}</Text>
           <View style={styles.bubbleMeta}>
-            <Text style={[styles.time, { color: item.isOwn ? 'rgba(255,255,255,0.7)' : Colors.subtleForeground }]}>{timeLabel(item.sentAt)}</Text>
+            <Text style={[styles.time, { color: item.isOwn ? dimOnPrimary : Colors.subtleForeground }]}>{timeLabel(item.sentAt)}</Text>
             {tick && <Ionicons name={tick.name} size={12} color={tick.color} accessibilityLabel={tick.label} />}
           </View>
         </View>
@@ -240,14 +243,15 @@ export default function ChatScreen() {
 
   return (
     <SafeAreaView style={[styles.root, { backgroundColor: Colors.background }]} edges={['top', 'bottom']}>
+      {loading && messages.length === 0 && !isEnded ? <LoadingScreen overlay /> : null}
       <View style={[styles.header, { borderBottomColor: Colors.border }]}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.back} accessibilityLabel="Back">
-          <Ionicons name="arrow-back" size={24} color={Colors.foreground} />
+        <TouchableOpacity onPress={() => router.back()} style={styles.back} hitSlop={8} accessibilityRole="button" accessibilityLabel="Go back">
+          <Ionicons name="chevron-back" size={24} color={Colors.foreground} />
         </TouchableOpacity>
-        <View style={[styles.avatar, { backgroundColor: Colors.primary + '20' }]}>
-          <Text style={[styles.avatarText, { color: Colors.primary }]}>{customerName[0].toUpperCase()}</Text>
+        <View style={[styles.avatar, { backgroundColor: Colors.surfaceRaised }]}>
+          <Text style={[styles.avatarText, { color: Colors.foreground }]}>{customerName[0].toUpperCase()}</Text>
         </View>
-        <View style={{ flex: 1 }}>
+        <View style={styles.flex}>
           <Text style={[styles.name, { color: Colors.foreground }]} numberOfLines={1}>{customerName}</Text>
           <Text style={[styles.sub, { color: connected && !isClosed ? Colors.success : Colors.mutedForeground }]}>
             {isEnded ? 'Chat ended' : isClosed ? 'Chat closed' : connected ? 'Live' : 'Updates every few seconds'}
@@ -255,7 +259,8 @@ export default function ChatScreen() {
         </View>
       </View>
 
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      {/* Padding on both platforms: Android is edge-to-edge, so the window no longer resizes for the keyboard. */}
+      <KeyboardAvoidingView style={styles.flex} behavior="padding">
         <FlatList
           ref={listRef}
           data={messages}
@@ -277,11 +282,7 @@ export default function ChatScreen() {
               <Text style={[styles.emptyText, { color: Colors.mutedForeground }]}>
                 Chat is only available while the job is active. For help with this job, contact support.
               </Text>
-              <TouchableOpacity onPress={() => router.push('/support')} accessibilityRole="button"
-                style={[styles.supportBtn, { backgroundColor: Colors.primary }]}>
-                <Ionicons name="headset-outline" size={16} color="#FFF" />
-                <Text style={styles.supportBtnText}>Contact support</Text>
-              </TouchableOpacity>
+              <Button title="Contact support" compact onPress={() => router.push('/support')} />
             </View>
           ) : !loading ? (
             <View style={styles.empty}>
@@ -297,14 +298,14 @@ export default function ChatScreen() {
           <View style={[styles.closedBar, { borderTopColor: Colors.border }]}>
             <Ionicons name="lock-closed-outline" size={14} color={Colors.mutedForeground} />
             <Text style={[styles.closedText, { color: Colors.mutedForeground }]}>
-              This job is {String(booking?.status ?? '').toLowerCase().replace('_', ' ')} — chat is read-only.
+              This job is {String(booking?.status ?? '').toLowerCase().replace('_', ' ')}. Chat is read-only.
             </Text>
           </View>
         ) : (<>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.quickRow} keyboardShouldPersistTaps="handled">
           {QUICK_REPLIES.map(q => (
-            <TouchableOpacity key={q} onPress={() => send(q)} style={[styles.quick, { borderColor: Colors.primary + '40', backgroundColor: Colors.primary + '10' }]}>
-              <Text style={[styles.quickText, { color: Colors.primary }]}>{q}</Text>
+            <TouchableOpacity key={q} onPress={() => send(q)} style={[styles.quick, { borderColor: Colors.border, backgroundColor: Colors.surface }]} activeOpacity={0.7}>
+              <Text style={[styles.quickText, { color: Colors.foreground }]}>{q}</Text>
             </TouchableOpacity>
           ))}
         </ScrollView>
@@ -323,9 +324,10 @@ export default function ChatScreen() {
             style={[styles.sendBtn, { backgroundColor: input.trim() ? Colors.primary : Colors.border }]}
             onPress={() => send(input)}
             disabled={!input.trim()}
+            accessibilityRole="button"
             accessibilityLabel="Send message"
           >
-            <Ionicons name="send" size={18} color="#FFF" />
+            <Ionicons name="send" size={18} color={Colors.onPrimary} />
           </TouchableOpacity>
         </View>
         </>)}
@@ -336,10 +338,11 @@ export default function ChatScreen() {
 
 const styles = StyleSheet.create({
   root:         { flex: 1 },
+  flex:         { flex: 1 },
   header:       { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, paddingHorizontal: Spacing.base, paddingVertical: Spacing.md, borderBottomWidth: StyleSheet.hairlineWidth },
   back:         { width: 32 },
   avatar:       { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
-  avatarText:   { fontSize: FontSize.body, fontWeight: FontWeight.bold },
+  avatarText:   { fontSize: FontSize.body, fontWeight: FontWeight.semibold },
   name:         { fontSize: FontSize.body, fontWeight: FontWeight.semibold },
   sub:          { fontSize: FontSize.xs, marginTop: 1 },
   list:         { padding: Spacing.base, gap: Spacing.sm },
@@ -353,16 +356,14 @@ const styles = StyleSheet.create({
   bubbleMeta:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 4 },
   time:         { fontSize: 10 },
   quickRow:     { paddingHorizontal: Spacing.base, paddingVertical: Spacing.sm, gap: Spacing.sm },
-  quick:        { borderWidth: 1, borderRadius: Radius.full, paddingHorizontal: Spacing.md, paddingVertical: 7 },
+  quick:        { borderWidth: StyleSheet.hairlineWidth, borderRadius: Radius.full, paddingHorizontal: Spacing.md, paddingVertical: 7 },
   quickText:    { fontSize: FontSize.sm, fontWeight: FontWeight.medium },
   inputRow:     { flexDirection: 'row', alignItems: 'flex-end', gap: Spacing.sm, padding: Spacing.md, borderTopWidth: StyleSheet.hairlineWidth },
-  input:        { flex: 1, borderWidth: 1, borderRadius: Radius.lg, paddingHorizontal: Spacing.md, paddingVertical: 10, maxHeight: 110, fontSize: FontSize.body },
+  input:        { flex: 1, borderWidth: StyleSheet.hairlineWidth, borderRadius: Radius.lg, paddingHorizontal: Spacing.md, paddingVertical: 10, maxHeight: 110, fontSize: FontSize.body },
   sendBtn:      { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
   olderBtn:     { alignSelf: 'center', paddingVertical: Spacing.sm, paddingHorizontal: Spacing.base, minHeight: 36, justifyContent: 'center' },
   olderText:    { fontSize: FontSize.sm, fontWeight: FontWeight.semibold },
   closedBar:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, padding: Spacing.md, borderTopWidth: StyleSheet.hairlineWidth },
   closedText:   { fontSize: FontSize.sm },
-  endedTitle:   { fontSize: FontSize.h3, fontWeight: FontWeight.bold },
-  supportBtn:   { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: Radius.full, paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md },
-  supportBtnText: { color: '#FFF', fontSize: FontSize.sm, fontWeight: FontWeight.bold },
+  endedTitle:   { fontSize: FontSize.h3, fontWeight: FontWeight.semibold },
 });

@@ -1,15 +1,16 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import {
-  View, Text, FlatList, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform,
+  View, Text, FlatList, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useLocalSearchParams, router } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { useTheme } from '@context/theme';
 import { useAuth } from '@context/auth';
 import { api } from '@utils/api';
 import { alertError, friendlyError } from '@utils/errors';
-import Skeleton from '@components/Skeleton';
+import ScreenHeader from '@components/ScreenHeader';
+import LoadingScreen from '@components/LoadingScreen';
 import EmptyState from '@components/EmptyState';
 import { FontSize, FontWeight, Spacing, Radius } from '@constants/theme';
 
@@ -71,32 +72,31 @@ export default function TicketScreen() {
     }
   };
 
+  const statusLabel = ticket
+    ? ticket.status.charAt(0) + ticket.status.slice(1).toLowerCase().replace('_', ' ')
+    : '';
   const header = (
     <View style={[styles.header, { borderBottomColor: Colors.border }]}>
-      <TouchableOpacity onPress={() => router.back()} accessibilityLabel="Back">
-        <Ionicons name="arrow-back" size={24} color={Colors.foreground} />
-      </TouchableOpacity>
-      <View style={{ flex: 1 }}>
-        <Text style={[styles.subject, { color: Colors.foreground }]} numberOfLines={1}>{ticket?.subject ?? 'Support'}</Text>
-        {ticket && (
-          <Text style={[styles.meta, { color: Colors[STATUS_COLOR_KEY[ticket.status]] ?? Colors.mutedForeground }]}>
-            {ticket.status.replace('_', ' ')} · #{String(id).slice(0, 8).toUpperCase()}
-          </Text>
-        )}
-      </View>
+      <ScreenHeader
+        back
+        title={ticket?.subject ?? 'Support'}
+        subtitle={ticket ? `${statusLabel} · #${String(id).slice(0, 8).toUpperCase()}` : undefined}
+        right={ticket ? <View style={[styles.statusDot, { backgroundColor: Colors[STATUS_COLOR_KEY[ticket.status]] ?? Colors.mutedForeground }]} /> : null}
+      />
     </View>
   );
 
   if (!ticket) {
     return (
       <SafeAreaView style={[styles.root, { backgroundColor: Colors.background }]} edges={['top', 'bottom']}>
+        {error ? null : <LoadingScreen overlay />}
         {header}
         {error ? (
-          <EmptyState icon="alert-circle-outline" title="Couldn't load this ticket"
-            subtitle={friendlyError(error) ?? ''} cta={{ label: 'Retry', onPress: load }} />
-        ) : (
-          Array.from({ length: 3 }).map((_, i) => <Skeleton.BookingCard key={i} />)
-        )}
+          <View style={styles.center}>
+            <EmptyState icon="alert-circle-outline" title="Couldn't load this ticket"
+              subtitle={friendlyError(error) ?? ''} cta={{ label: 'Try again', onPress: load }} />
+          </View>
+        ) : null}
       </SafeAreaView>
     );
   }
@@ -106,7 +106,8 @@ export default function TicketScreen() {
   return (
     <SafeAreaView style={[styles.root, { backgroundColor: Colors.background }]} edges={['top', 'bottom']}>
       {header}
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      {/* Padding on both platforms: Android is edge-to-edge, so the window no longer resizes for the keyboard. */}
+      <KeyboardAvoidingView style={styles.flex} behavior="padding">
         <FlatList
           ref={listRef}
           data={messages}
@@ -128,8 +129,8 @@ export default function TicketScreen() {
                     : { backgroundColor: Colors.surface, borderColor: Colors.border, borderWidth: StyleSheet.hairlineWidth, borderBottomLeftRadius: 4 },
                 ]}>
                   {!own && <Text style={[styles.sender, { color: Colors.primary }]}>{item.sender_name ?? 'Support'}</Text>}
-                  <Text style={[styles.text, { color: own ? '#FFF' : Colors.foreground }]}>{item.content}</Text>
-                  <Text style={[styles.time, { color: own ? 'rgba(255,255,255,0.7)' : Colors.subtleForeground }]}>{stamp(item.created_at)}</Text>
+                  <Text style={[styles.text, { color: own ? Colors.onPrimary : Colors.foreground }]}>{item.content}</Text>
+                  <Text style={[styles.time, { color: own ? Colors.onPrimary + 'B3' : Colors.subtleForeground }]}>{stamp(item.created_at)}</Text>
                 </View>
               </View>
             );
@@ -157,9 +158,10 @@ export default function TicketScreen() {
               style={[styles.sendBtn, { backgroundColor: input.trim() && !sending ? Colors.primary : Colors.border }]}
               onPress={send}
               disabled={!input.trim() || sending}
+              accessibilityRole="button"
               accessibilityLabel="Send reply"
             >
-              <Ionicons name="send" size={18} color="#FFF" />
+              <Ionicons name="send" size={18} color={Colors.onPrimary} />
             </TouchableOpacity>
           </View>
         )}
@@ -170,19 +172,20 @@ export default function TicketScreen() {
 
 const styles = StyleSheet.create({
   root:       { flex: 1 },
-  header:     { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, paddingHorizontal: Spacing.base, paddingVertical: Spacing.md, borderBottomWidth: StyleSheet.hairlineWidth },
-  subject:    { fontSize: FontSize.body, fontWeight: FontWeight.semibold },
-  meta:       { fontSize: FontSize.xs, fontWeight: FontWeight.medium, marginTop: 1 },
+  flex:       { flex: 1 },
+  center:     { flex: 1, justifyContent: 'center' },
+  header:     { borderBottomWidth: StyleSheet.hairlineWidth },
+  statusDot:  { width: 8, height: 8, borderRadius: 4 },
   list:       { padding: Spacing.base, gap: Spacing.sm },
   waiting:    { fontSize: FontSize.xs, textAlign: 'center', marginTop: Spacing.md },
   row:        { flexDirection: 'row' },
   rowOwn:     { justifyContent: 'flex-end' },
   bubble:     { maxWidth: '82%', borderRadius: Radius.lg, paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm, gap: 3 },
-  sender:     { fontSize: FontSize.xs, fontWeight: FontWeight.bold },
+  sender:     { fontSize: FontSize.xs, fontWeight: FontWeight.semibold },
   text:       { fontSize: FontSize.body, lineHeight: 20 },
   time:       { fontSize: 10, alignSelf: 'flex-end' },
   inputRow:   { flexDirection: 'row', alignItems: 'flex-end', gap: Spacing.sm, padding: Spacing.md, borderTopWidth: StyleSheet.hairlineWidth },
-  input:      { flex: 1, borderWidth: 1, borderRadius: Radius.lg, paddingHorizontal: Spacing.md, paddingVertical: 10, maxHeight: 110, fontSize: FontSize.body },
+  input:      { flex: 1, borderWidth: StyleSheet.hairlineWidth, borderRadius: Radius.lg, paddingHorizontal: Spacing.md, paddingVertical: 10, maxHeight: 110, fontSize: FontSize.body },
   sendBtn:    { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
   closedBar:  { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, padding: Spacing.base, borderTopWidth: StyleSheet.hairlineWidth },
   closedText: { flex: 1, fontSize: FontSize.sm },

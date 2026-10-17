@@ -1,27 +1,30 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import {
-  View, Text, FlatList, TouchableOpacity, TextInput, Modal,
-  StyleSheet, Alert, RefreshControl, KeyboardAvoidingView, Platform,
+  View, Text, FlatList, TouchableOpacity, ScrollView, StyleSheet, Alert, RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { router, useFocusEffect } from 'expo-router';
 import { useTheme } from '@context/theme';
 import { useAuth } from '@context/auth';
-import { FontSize, FontWeight, Spacing, Radius, Shadow } from '@constants/theme';
+import { FontSize, FontWeight, Spacing, Radius } from '@constants/theme';
 import { alertError } from '@utils/errors';
 import { api } from '@utils/api';
 import { timeAgo } from '@utils/normalize';
 import EmptyState from '@components/EmptyState';
+import ScreenHeader from '@components/ScreenHeader';
+import LoadingScreen from '@components/LoadingScreen';
+import BottomSheet from '@components/BottomSheet';
+import TextField from '@components/TextField';
+import Button from '@components/Button';
 
 const CATEGORIES = ['Payment Issue', 'Booking Problem', 'App Issue', 'Verification', 'Other'];
 
-const STATUS_COLOR = {
-  OPEN:        '#F59E0B',
-  IN_PROGRESS: '#3B82F6',
-  RESOLVED:    '#10B981',
-  CLOSED:      'rgba(84,84,88,0.6)',
+const STATUS = {
+  OPEN:        { tone: 'warning',         label: 'Open' },
+  IN_PROGRESS: { tone: 'info',            label: 'In progress' },
+  RESOLVED:    { tone: 'success',         label: 'Resolved' },
+  CLOSED:      { tone: 'mutedForeground', label: 'Closed' },
 };
 
 export default function SupportScreen() {
@@ -36,6 +39,7 @@ export default function SupportScreen() {
   const [subject,     setSubject]     = useState('');
   const [description, setDescription] = useState('');
   const [submitting,  setSubmitting]  = useState(false);
+  const loadedOnce = useRef(false);
 
   const fetchTickets = useCallback(async () => {
     if (!token) return;
@@ -47,10 +51,11 @@ export default function SupportScreen() {
     }
   }, [token]);
 
+  // Spinner only on the first load; coming back from a ticket refreshes quietly.
   useFocusEffect(
     useCallback(() => {
-      setLoading(true);
-      fetchTickets().finally(() => setLoading(false));
+      if (!loadedOnce.current) setLoading(true);
+      fetchTickets().finally(() => { loadedOnce.current = true; setLoading(false); });
     }, [fetchTickets])
   );
 
@@ -62,7 +67,7 @@ export default function SupportScreen() {
 
   const handleSubmit = async () => {
     if (!subject.trim() || !description.trim()) {
-      Alert.alert('Required', 'Please fill in the subject and description');
+      Alert.alert('Required', 'Please fill in the subject and description.');
       return;
     }
     if (subject.trim().length < 5) {
@@ -88,150 +93,133 @@ export default function SupportScreen() {
     }
   };
 
+  const newTicketButton = (
+    <TouchableOpacity
+      onPress={() => setShowModal(true)}
+      hitSlop={8}
+      style={styles.headerBtn}
+      accessibilityRole="button"
+      accessibilityLabel="New ticket"
+    >
+      <Ionicons name="add" size={26} color={Colors.primary} />
+    </TouchableOpacity>
+  );
+
   return (
     <SafeAreaView style={[styles.root, { backgroundColor: Colors.background }]} edges={['top']}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} hitSlop={12} accessibilityRole="button" accessibilityLabel="Back">
-          <Ionicons name="arrow-back" size={24} color={Colors.foreground} />
-        </TouchableOpacity>
-        <Text style={[styles.title, { color: Colors.foreground }]}>Support</Text>
-        <TouchableOpacity onPress={() => setShowModal(true)} hitSlop={12} accessibilityRole="button" accessibilityLabel="Raise a new ticket">
-          <Ionicons name="add-circle-outline" size={28} color={Colors.primary} />
-        </TouchableOpacity>
-      </View>
+      {loading ? <LoadingScreen overlay /> : null}
+      <ScreenHeader back title="Help and support" right={newTicketButton} />
 
-      <FlatList
-        data={tickets}
-        keyExtractor={item => String(item.ticket_id ?? item.id)}
-        contentContainerStyle={styles.list}
-        showsVerticalScrollIndicator={false}
-        ListEmptyComponent={
-          !loading
-            ? <EmptyState
-                icon="headset-outline"
-                title="No support tickets"
-                subtitle="Tap + to raise a new ticket"
-                cta={{ label: 'Raise Ticket', onPress: () => setShowModal(true) }}
-              />
-            : null
-        }
-        renderItem={({ item }) => {
-          const statusColor = STATUS_COLOR[item.status] ?? Colors.mutedForeground;
-          return (
-            <TouchableOpacity
-              style={[styles.ticket, { backgroundColor: Colors.surface, borderColor: Colors.border }, Shadow.sm]}
-              onPress={() => router.push(`/support/${item.ticket_id}`)}
-              activeOpacity={0.85}
-            >
-              <View style={styles.ticketRow}>
-                <Text style={[styles.ticketSubject, { color: Colors.foreground }]} numberOfLines={1}>
-                  {item.subject}
-                </Text>
-                <View style={[styles.statusBadge, { backgroundColor: statusColor + '18' }]}>
-                  <Text style={[styles.statusText, { color: statusColor }]}>{item.status.replace('_', ' ')}</Text>
+      {loading ? null : (
+        <FlatList
+          data={tickets}
+          keyExtractor={item => String(item.ticket_id ?? item.id)}
+          contentContainerStyle={styles.list}
+          showsVerticalScrollIndicator={false}
+          ListEmptyComponent={
+            <EmptyState
+              icon="chatbubbles-outline"
+              title="No tickets yet"
+              subtitle="Raise a ticket and our team will get back to you."
+              cta={{ label: 'New ticket', onPress: () => setShowModal(true) }}
+            />
+          }
+          renderItem={({ item }) => {
+            const status = STATUS[item.status] ?? { tone: 'mutedForeground', label: item.status };
+            const color = Colors[status.tone];
+            return (
+              <TouchableOpacity
+                style={[styles.ticket, { backgroundColor: Colors.surface, borderColor: Colors.border }]}
+                onPress={() => router.push(`/support/${item.ticket_id}`)}
+                activeOpacity={0.75}
+              >
+                <View style={styles.ticketRow}>
+                  <Text style={[styles.ticketSubject, { color: Colors.foreground }]} numberOfLines={1}>
+                    {item.subject}
+                  </Text>
+                  <View style={[styles.statusBadge, { backgroundColor: color + '1F' }]}>
+                    <Text style={[styles.statusText, { color }]}>{status.label}</Text>
+                  </View>
                 </View>
-              </View>
-              <View style={styles.ticketRow}>
-                <Text style={[styles.ticketCat, { color: Colors.mutedForeground }]}>
-                  {item.category} · {timeAgo(item.updated_at ?? item.created_at)}
-                </Text>
-                <Ionicons name="chevron-forward" size={16} color={Colors.subtleForeground} />
-              </View>
-            </TouchableOpacity>
-          );
-        }}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} colors={[Colors.primary]} />
-        }
-      />
-
-      {/* New ticket modal */}
-      <Modal visible={showModal} transparent animationType="slide" onRequestClose={() => setShowModal(false)}>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.modalOverlay}>
-          <View style={[styles.modalSheet, { backgroundColor: Colors.surface }]}>
-            <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: Colors.foreground }]}>Raise a Ticket</Text>
-              <TouchableOpacity onPress={() => setShowModal(false)} hitSlop={12} accessibilityRole="button" accessibilityLabel="Close">
-                <Ionicons name="close" size={24} color={Colors.foreground} />
+                <View style={styles.ticketRow}>
+                  <Text style={[styles.ticketCat, { color: Colors.mutedForeground }]} numberOfLines={1}>
+                    {item.category} · {timeAgo(item.updated_at ?? item.created_at)}
+                  </Text>
+                  <Ionicons name="chevron-forward" size={16} color={Colors.subtleForeground} />
+                </View>
               </TouchableOpacity>
-            </View>
+            );
+          }}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} colors={[Colors.primary]} />
+          }
+        />
+      )}
 
+      <BottomSheet visible={showModal} onClose={() => setShowModal(false)} dismissible={!submitting}>
+        <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.sheet} showsVerticalScrollIndicator={false}>
+          <Text style={[styles.sheetTitle, { color: Colors.foreground }]}>New ticket</Text>
+
+          <View style={styles.field}>
             <Text style={[styles.fieldLabel, { color: Colors.mutedForeground }]}>Category</Text>
             <View style={styles.categoryRow}>
-              {CATEGORIES.map(c => (
-                <TouchableOpacity
-                  key={c}
-                  style={[styles.catChip, { backgroundColor: category === c ? Colors.primary : Colors.surfaceRaised, borderColor: category === c ? Colors.primary : Colors.border }]}
-                  onPress={() => setCategory(c)}
-                  activeOpacity={0.8}
-                >
-                  <Text style={[styles.catChipText, { color: category === c ? '#FFF' : Colors.mutedForeground }]}>{c}</Text>
-                </TouchableOpacity>
-              ))}
+              {CATEGORIES.map(c => {
+                const active = category === c;
+                return (
+                  <TouchableOpacity
+                    key={c}
+                    style={[styles.catChip, { backgroundColor: active ? Colors.primary : Colors.surfaceRaised, borderColor: active ? Colors.primary : Colors.border }]}
+                    onPress={() => setCategory(c)}
+                    activeOpacity={0.8}
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected: active }}
+                  >
+                    <Text style={[styles.catChipText, { color: active ? Colors.onPrimary : Colors.foreground }]}>{c}</Text>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
-
-            <Text style={[styles.fieldLabel, { color: Colors.mutedForeground }]}>Subject</Text>
-            <TextInput
-              style={[styles.input, { backgroundColor: Colors.inputBg, borderColor: Colors.border, color: Colors.foreground }]}
-              placeholder="Brief summary of your issue"
-              placeholderTextColor={Colors.subtleForeground}
-              value={subject}
-              onChangeText={setSubject}
-              maxLength={100}
-            />
-
-            <Text style={[styles.fieldLabel, { color: Colors.mutedForeground }]}>Description</Text>
-            <TextInput
-              style={[styles.textarea, { backgroundColor: Colors.inputBg, borderColor: Colors.border, color: Colors.foreground }]}
-              placeholder="Describe your issue in detail..."
-              placeholderTextColor={Colors.subtleForeground}
-              value={description}
-              onChangeText={setDescription}
-              multiline
-              numberOfLines={5}
-              textAlignVertical="top"
-              maxLength={1000}
-            />
-
-            <TouchableOpacity
-              style={[styles.submitBtn, { opacity: !submitting ? 1 : 0.6 }]}
-              onPress={handleSubmit}
-              disabled={submitting}
-              activeOpacity={0.85}
-            >
-              <LinearGradient colors={Colors.gradientPrimary} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.submitGrad}>
-                <Text style={styles.submitText}>{submitting ? 'Submitting...' : 'Submit Ticket'}</Text>
-              </LinearGradient>
-            </TouchableOpacity>
           </View>
-        </KeyboardAvoidingView>
-      </Modal>
+
+          <TextField
+            label="Subject"
+            placeholder="Brief summary of your issue"
+            value={subject}
+            onChangeText={setSubject}
+            maxLength={100}
+          />
+          <TextField
+            label="Description"
+            placeholder="Describe your issue in detail"
+            value={description}
+            onChangeText={setDescription}
+            multiline
+            maxLength={1000}
+            hint={`${description.length}/1000`}
+          />
+
+          <Button title="Submit ticket" onPress={handleSubmit} loading={submitting} />
+        </ScrollView>
+      </BottomSheet>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  root:         { flex: 1 },
-  header:       { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: Spacing.base },
-  title:        { fontSize: FontSize.h2, fontWeight: FontWeight.bold },
-  list:         { padding: Spacing.base, gap: Spacing.sm, paddingBottom: 40 },
-  ticket:       { borderRadius: Radius.lg, borderWidth: StyleSheet.hairlineWidth, padding: Spacing.base, gap: Spacing.sm },
-  ticketRow:    { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: Spacing.sm },
-  ticketSubject:{ flex: 1, fontSize: FontSize.body, fontWeight: FontWeight.semibold },
-  statusBadge:  { borderRadius: Radius.full, paddingHorizontal: 8, paddingVertical: 3 },
-  statusText:   { fontSize: FontSize.xs, fontWeight: FontWeight.bold },
-  ticketCat:    { fontSize: FontSize.xs },
-  modalOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' },
-  modalSheet:   { borderTopLeftRadius: Radius.xl2, borderTopRightRadius: Radius.xl2, padding: Spacing.base, paddingBottom: 40, gap: Spacing.md },
-  modalHeader:  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  modalTitle:   { fontSize: FontSize.h2, fontWeight: FontWeight.bold },
-  fieldLabel:   { fontSize: FontSize.sm, fontWeight: FontWeight.medium },
-  categoryRow:  { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
-  catChip:      { borderRadius: Radius.full, borderWidth: 1, paddingHorizontal: Spacing.md, paddingVertical: 6 },
-  catChipText:  { fontSize: FontSize.xs, fontWeight: FontWeight.medium },
-  input:        { borderRadius: Radius.md, borderWidth: 1.5, height: 50, paddingHorizontal: Spacing.md, fontSize: FontSize.body },
-  textarea:     { borderRadius: Radius.md, borderWidth: 1.5, padding: Spacing.md, fontSize: FontSize.body, minHeight: 110 },
-  submitBtn:    { borderRadius: Radius.lg, overflow: 'hidden', height: 54 },
-  submitGrad:   { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  submitText:   { color: '#FFF', fontSize: FontSize.body, fontWeight: FontWeight.bold },
+  root:          { flex: 1 },
+  headerBtn:     { width: 40, height: 40, marginRight: -Spacing.sm, justifyContent: 'center', alignItems: 'center' },
+  list:          { padding: Spacing.base, paddingTop: Spacing.xs, gap: Spacing.sm, paddingBottom: Spacing.xl3, flexGrow: 1 },
+  ticket:        { borderRadius: Radius.lg, borderWidth: StyleSheet.hairlineWidth, padding: Spacing.base, gap: Spacing.sm },
+  ticketRow:     { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: Spacing.sm },
+  ticketSubject: { flex: 1, fontSize: FontSize.body, fontWeight: FontWeight.semibold },
+  statusBadge:   { borderRadius: Radius.full, paddingHorizontal: 8, paddingVertical: 3 },
+  statusText:    { fontSize: FontSize.xs, fontWeight: FontWeight.semibold },
+  ticketCat:     { flex: 1, fontSize: FontSize.xs },
+  sheet:         { gap: Spacing.base, paddingBottom: Spacing.xs },
+  sheetTitle:    { fontSize: FontSize.h2, fontWeight: FontWeight.bold },
+  field:         { gap: Spacing.sm - 2 },
+  fieldLabel:    { fontSize: FontSize.sm, fontWeight: FontWeight.medium },
+  categoryRow:   { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
+  catChip:       { borderRadius: Radius.full, borderWidth: StyleSheet.hairlineWidth, paddingHorizontal: Spacing.md, paddingVertical: 8 },
+  catChipText:   { fontSize: FontSize.sm, fontWeight: FontWeight.medium },
 });
