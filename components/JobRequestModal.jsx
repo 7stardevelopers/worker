@@ -1,130 +1,113 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, Modal, TouchableOpacity, StyleSheet, Animated } from 'react-native';
+import { View, Text, Animated, Easing, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '@context/theme';
-import { FontSize, FontWeight, Spacing, Radius, Shadow } from '@constants/theme';
+import { FontSize, FontWeight, Spacing, Radius } from '@constants/theme';
+import { formatINR } from '@utils/format';
+import BottomSheet from '@components/BottomSheet';
+import Button from '@components/Button';
 
 const COUNTDOWN = 30;
 
 export default function JobRequestModal({ visible, job, onAccept, onReject }) {
   const { Colors } = useTheme();
   const [timer, setTimer] = useState(COUNTDOWN);
-  const slideY = useRef(new Animated.Value(300)).current;
+  const [busy,  setBusy]  = useState(false);
   const progress = useRef(new Animated.Value(1)).current;
 
+  // Keep the last job around so the sheet still has content while it
+  // animates closed after the parent clears `job`.
+  const lastJob = useRef(job);
+  if (job) lastJob.current = job;
+  const current = job ?? lastJob.current;
+
   useEffect(() => {
-    if (!visible) {
-      slideY.setValue(300);
-      progress.setValue(1);
-      setTimer(COUNTDOWN);
-      return;
-    }
-
-    Animated.spring(slideY, { toValue: 0, tension: 60, friction: 10, useNativeDriver: true }).start();
-    Animated.timing(progress, { toValue: 0, duration: COUNTDOWN * 1000, useNativeDriver: false }).start();
-
-    setTimer(COUNTDOWN);
-    const iv = setInterval(() => {
-      setTimer(t => {
-        if (t <= 1) { clearInterval(iv); onReject?.(); return 0; }
-        return t - 1;
-      });
-    }, 1000);
-
-    return () => clearInterval(iv);
+    if (!visible) return undefined;
+    setBusy(false);
+    progress.setValue(1);
+    const anim = Animated.timing(progress, {
+      toValue: 0, duration: COUNTDOWN * 1000, easing: Easing.linear, useNativeDriver: true,
+    });
+    anim.start();
+    const iv = setInterval(() => setTimer(t => Math.max(t - 1, 0)), 1000);
+    // Reset on close so the next request never opens with an expired timer.
+    return () => { clearInterval(iv); anim.stop(); setTimer(COUNTDOWN); };
   }, [visible]);
 
-  if (!job) return null;
+  useEffect(() => {
+    if (visible && timer === 0 && !busy) onReject?.();
+  }, [timer, visible, busy]);
 
-  const earning = job.providerEarning ?? job.totalAmount ?? 0;
-  const progressWidth = progress.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] });
+  const handleAccept = async () => {
+    setBusy(true);
+    try {
+      await onAccept?.();
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (!current) return null;
+
+  const earning = current.providerEarning ?? current.totalAmount ?? 0;
 
   return (
-    <Modal visible={visible} transparent animationType="none">
-      <View style={styles.overlay}>
-        <Animated.View style={[styles.sheet, { backgroundColor: Colors.surface, transform: [{ translateY: slideY }] }, Shadow.lg]}>
-          <LinearGradient colors={['rgba(99,102,241,0.15)', 'transparent']} style={StyleSheet.absoluteFill} />
-
-          {/* Timer bar */}
-          <View style={[styles.timerTrack, { backgroundColor: Colors.border }]}>
-            <Animated.View style={[styles.timerFill, { width: progressWidth, backgroundColor: Colors.warning }]} />
-          </View>
-
-          <View style={styles.header}>
-            <View style={[styles.alertIcon, { backgroundColor: Colors.warning + '20' }]}>
-              <Ionicons name="flash" size={28} color={Colors.warning} />
-            </View>
-            <Text style={[styles.title, { color: Colors.foreground }]}>New Job Request!</Text>
-            <Text style={[styles.countdown, { color: Colors.warning }]}>Expires in {timer}s</Text>
-          </View>
-
-          <View style={[styles.jobCard, { backgroundColor: Colors.surfaceRaised, borderColor: Colors.border }]}>
-            <Text style={[styles.jobName, { color: Colors.foreground }]}>
-              {job.service?.name ?? 'Service'}
-            </Text>
-            <View style={styles.jobMeta}>
-              <View style={styles.metaRow}>
-                <Ionicons name="location-outline" size={14} color={Colors.mutedForeground} />
-                <Text style={[styles.metaText, { color: Colors.mutedForeground }]} numberOfLines={2}>
-                  {job.address?.fullAddress ?? 'Address on file'}
-                </Text>
-              </View>
-              <View style={styles.metaRow}>
-                <Ionicons name="time-outline" size={14} color={Colors.mutedForeground} />
-                <Text style={[styles.metaText, { color: Colors.mutedForeground }]}>
-                  {job.service?.duration ?? 60} min
-                </Text>
-              </View>
-            </View>
-            <View style={[styles.earningBadge, { backgroundColor: Colors.success + '15', borderColor: Colors.success + '40' }]}>
-              <Text style={[styles.earningLabel, { color: Colors.mutedForeground }]}>You earn</Text>
-              <Text style={[styles.earningAmount, { color: Colors.success }]}>
-                ₹{(earning / 100).toFixed(0)}
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.actions}>
-            <TouchableOpacity style={[styles.rejectBtn, { borderColor: Colors.error }]} onPress={onReject} activeOpacity={0.85}>
-              <Ionicons name="close" size={20} color={Colors.error} />
-              <Text style={[styles.rejectText, { color: Colors.error }]}>Decline</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={[styles.acceptBtn, { flex: 1 }]} onPress={onAccept} activeOpacity={0.85}>
-              <LinearGradient colors={['#10B981', '#059669']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.acceptGrad}>
-                <Ionicons name="checkmark" size={20} color="#FFF" />
-                <Text style={styles.acceptText}>Accept Job</Text>
-              </LinearGradient>
-            </TouchableOpacity>
-          </View>
-        </Animated.View>
+    <BottomSheet visible={visible} onClose={onReject} dismissible={!busy}>
+      <View style={[styles.timerTrack, { backgroundColor: Colors.borderLight }]}>
+        <Animated.View
+          style={[styles.timerFill, { backgroundColor: Colors.warning, transform: [{ scaleX: progress }] }]}
+        />
       </View>
-    </Modal>
+
+      <View style={styles.header}>
+        <Text style={[styles.title, { color: Colors.foreground }]}>New job request</Text>
+        <Text style={[styles.countdown, { color: Colors.warning }]}>{timer}s</Text>
+      </View>
+
+      <View style={[styles.card, { backgroundColor: Colors.surfaceRaised }]}>
+        <Text style={[styles.jobName, { color: Colors.foreground }]} numberOfLines={2}>
+          {current.service?.name ?? 'Service'}
+        </Text>
+        <View style={styles.metaRow}>
+          <Ionicons name="location-outline" size={14} color={Colors.mutedForeground} />
+          <Text style={[styles.metaText, { color: Colors.mutedForeground }]} numberOfLines={2}>
+            {current.address?.fullAddress ?? 'Address on file'}
+          </Text>
+        </View>
+        <View style={styles.metaRow}>
+          <Ionicons name="time-outline" size={14} color={Colors.mutedForeground} />
+          <Text style={[styles.metaText, { color: Colors.mutedForeground }]}>
+            {current.service?.duration ?? 60} min
+          </Text>
+        </View>
+        <View style={[styles.earningRow, { borderTopColor: Colors.border }]}>
+          <Text style={[styles.earningLabel, { color: Colors.mutedForeground }]}>You earn</Text>
+          <Text style={[styles.earningAmount, { color: Colors.success }]}>{formatINR(earning)}</Text>
+        </View>
+      </View>
+
+      <View style={styles.actions}>
+        <Button title="Decline" variant="secondary" onPress={onReject} disabled={busy} style={styles.decline} />
+        <Button title="Accept" onPress={handleAccept} loading={busy} style={styles.accept} />
+      </View>
+    </BottomSheet>
   );
 }
 
 const styles = StyleSheet.create({
-  overlay:       { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' },
-  sheet:         { borderTopLeftRadius: Radius.xl2, borderTopRightRadius: Radius.xl2, padding: Spacing.base, paddingBottom: 36, gap: Spacing.base, overflow: 'hidden' },
-  timerTrack:    { height: 4, borderRadius: 2, overflow: 'hidden', marginBottom: Spacing.sm },
-  timerFill:     { height: '100%', borderRadius: 2 },
-  header:        { alignItems: 'center', gap: Spacing.sm },
-  alertIcon:     { width: 64, height: 64, borderRadius: 32, justifyContent: 'center', alignItems: 'center' },
+  timerTrack:    { height: 3, borderRadius: 2, overflow: 'hidden' },
+  timerFill:     { height: '100%', width: '100%', transformOrigin: 'left' },
+  header:        { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   title:         { fontSize: FontSize.h2, fontWeight: FontWeight.bold },
-  countdown:     { fontSize: FontSize.body, fontWeight: FontWeight.semibold },
-  jobCard:       { borderRadius: Radius.lg, borderWidth: StyleSheet.hairlineWidth, padding: Spacing.base, gap: Spacing.sm },
-  jobName:       { fontSize: FontSize.h3, fontWeight: FontWeight.semibold },
-  jobMeta:       { gap: 6 },
+  countdown:     { fontSize: FontSize.body, fontWeight: FontWeight.semibold, fontVariant: ['tabular-nums'] },
+  card:          { borderRadius: Radius.lg, padding: Spacing.base, gap: Spacing.sm },
+  jobName:       { fontSize: FontSize.h3, fontWeight: FontWeight.semibold, marginBottom: 2 },
   metaRow:       { flexDirection: 'row', alignItems: 'flex-start', gap: 6 },
-  metaText:      { fontSize: FontSize.sm, flex: 1 },
-  earningBadge:  { borderRadius: Radius.md, borderWidth: 1, padding: Spacing.md, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: Spacing.sm },
+  metaText:      { flex: 1, fontSize: FontSize.sm, lineHeight: 18 },
+  earningRow:    { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderTopWidth: StyleSheet.hairlineWidth, paddingTop: Spacing.md, marginTop: Spacing.xs },
   earningLabel:  { fontSize: FontSize.sm },
   earningAmount: { fontSize: FontSize.h2, fontWeight: FontWeight.bold },
   actions:       { flexDirection: 'row', gap: Spacing.sm },
-  rejectBtn:     { width: 100, height: 54, borderRadius: Radius.lg, borderWidth: 1.5, justifyContent: 'center', alignItems: 'center', flexDirection: 'row', gap: 6 },
-  rejectText:    { fontSize: FontSize.body, fontWeight: FontWeight.semibold },
-  acceptBtn:     { borderRadius: Radius.lg, overflow: 'hidden', height: 54 },
-  acceptGrad:    { flex: 1, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8 },
-  acceptText:    { color: '#FFF', fontSize: FontSize.body, fontWeight: FontWeight.bold },
+  decline:       { flex: 1 },
+  accept:        { flex: 2 },
 });

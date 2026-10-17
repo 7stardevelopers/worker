@@ -38,12 +38,14 @@ export function ProviderProvider({ children }) {
       const p   = res.data;
       setProfile(p);
       setIsAvailable(!!p.is_available);
+      return p;
     } catch (e) {
       if (e.status === 404) {
         setProfile(null); // new user — no provider record yet
-      } else {
-        console.warn('[Provider] fetchProfile failed:', e.message);
+        return null;
       }
+      console.warn('[Provider] fetchProfile failed:', e.message);
+      return undefined;
     } finally {
       setLoading(false);
       setProfileLoaded(true);

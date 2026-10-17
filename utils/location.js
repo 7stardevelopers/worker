@@ -23,7 +23,7 @@ TaskManager.defineTask(LOCATION_TASK, async ({ data, error }) => {
     return;
   }
 
-  console.log('[Location] 📍 Got fix:', loc.coords.latitude, loc.coords.longitude, '| BASE_URL:', BASE_URL ?? 'NOT SET');
+  console.log('[Location] Got fix:', loc.coords.latitude, loc.coords.longitude, '| BASE_URL:', BASE_URL ?? 'NOT SET');
 
   try {
     const token = await AsyncStorage.getItem('auth_access_token');
@@ -84,7 +84,7 @@ export async function startLocationTracking() {
       notificationBody: 'Sharing your location with the customer.',
     },
   });
-  console.log('[Location] ✅ Started background tracking task');
+  console.log('[Location] Started background tracking task');
   return true;
 }
 
@@ -92,6 +92,6 @@ export async function stopLocationTracking() {
   const isRunning = await Location.hasStartedLocationUpdatesAsync(LOCATION_TASK).catch(() => false);
   if (isRunning) {
     await Location.stopLocationUpdatesAsync(LOCATION_TASK);
-    console.log('[Location] 🛑 Stopped background tracking task');
+    console.log('[Location] Stopped background tracking task');
   }
 }
