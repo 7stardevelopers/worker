@@ -4,7 +4,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useAuth } from '@context/auth';
 import { useTheme } from '@context/theme';
+<<<<<<< HEAD
 import { FontSize, FontWeight, Spacing } from '@constants/theme';
+=======
+import { FontSize, FontWeight, Spacing, Radius } from '@constants/theme';
+import { friendlyError } from '@utils/errors';
+>>>>>>> e26961c635b60a007766324f445890a2e88d7232
 import { api } from '@utils/api';
 import { formatPhone } from '@utils/format';
 import ScreenHeader from '@components/ScreenHeader';
@@ -40,7 +45,7 @@ export default function OtpScreen() {
       // index.jsx reads provider status and routes to (tabs) or onboarding
       router.replace('/');
     } catch (e) {
-      setError(e.message);
+      setError(friendlyError(e) ?? '');
       setLoading(false);
     }
   };
@@ -60,7 +65,7 @@ export default function OtpScreen() {
       setCode('');
       setError('');
     } catch (e) {
-      setError(e.message);
+      setError(friendlyError(e) ?? '');
     } finally {
       setResending(false);
     }
@@ -72,8 +77,23 @@ export default function OtpScreen() {
       <KeyboardAvoidingView behavior="padding" style={styles.flex}>
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
 
+<<<<<<< HEAD
           <View style={styles.headingBlock}>
             <Text style={[styles.heading, { color: Colors.foreground }]}>Enter code</Text>
+=======
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
+        <View style={styles.content}>
+
+          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} hitSlop={12} accessibilityRole="button" accessibilityLabel="Back">
+            <Ionicons name="arrow-back" size={24} color={Colors.foreground} />
+          </TouchableOpacity>
+
+          <View style={styles.header}>
+            <View style={[styles.iconCircle, { backgroundColor: Colors.primary + '20' }]}>
+              <Ionicons name="chatbubble-outline" size={32} color={Colors.primary} />
+            </View>
+            <Text style={[styles.heading, { color: Colors.foreground }]}>Verify OTP</Text>
+>>>>>>> e26961c635b60a007766324f445890a2e88d7232
             <Text style={[styles.sub, { color: Colors.mutedForeground }]}>
               We sent a 6-digit code to {formatPhone(phone)}
             </Text>

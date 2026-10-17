@@ -6,10 +6,17 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from 'expo-router';
 import { useTheme } from '@context/theme';
 import { useAuth } from '@context/auth';
+<<<<<<< HEAD
 import { FontSize, FontWeight, Spacing, Radius } from '@constants/theme';
 import { api } from '@utils/api';
 import ScreenHeader from '@components/ScreenHeader';
 import LoadingScreen from '@components/LoadingScreen';
+=======
+import { FontSize, FontWeight, Spacing, Radius, Shadow } from '@constants/theme';
+import { alertError } from '@utils/errors';
+import { api } from '@utils/api';
+import { timeAgo } from '@utils/normalize';
+>>>>>>> e26961c635b60a007766324f445890a2e88d7232
 import EmptyState from '@components/EmptyState';
 import BottomSheet from '@components/BottomSheet';
 import TextField from '@components/TextField';
@@ -71,8 +78,13 @@ export default function SupportScreen() {
       Alert.alert('Required', 'Please fill in the subject and description.');
       return;
     }
+    if (subject.trim().length < 5) {
+      Alert.alert('Subject too short', 'Please describe the issue in at least 5 characters.');
+      return;
+    }
     setSubmitting(true);
     try {
+<<<<<<< HEAD
       await api.post('/support/tickets', { category, subject: subject.trim(), description: description.trim() }, token);
       setShowSheet(false);
       setSubject('');
@@ -80,8 +92,20 @@ export default function SupportScreen() {
       setCategory(CATEGORIES[0]);
       await fetchTickets();
       Alert.alert('Ticket raised', 'Our support team will respond within 24 hours.');
+=======
+      // The ticket API has no description field — it stores the subject only —
+      // so the details go in as the ticket's first message.
+      const created = await api.post('/support/tickets', { category, subject: subject.trim() }, token);
+      await api.post(`/support/tickets/${created.data.ticket_id}/messages`, { content: description.trim() }, token);
+      setShowModal(false);
+      setSubject('');
+      setDescription('');
+      setCategory(CATEGORIES[0]);
+      fetchTickets();
+      router.push(`/support/${created.data.ticket_id}`);
+>>>>>>> e26961c635b60a007766324f445890a2e88d7232
     } catch (e) {
-      Alert.alert('Error', e.message);
+      alertError('Error', e);
     } finally {
       setSubmitting(false);
     }
@@ -93,6 +117,7 @@ export default function SupportScreen() {
 
   return (
     <SafeAreaView style={[styles.root, { backgroundColor: Colors.background }]} edges={['top']}>
+<<<<<<< HEAD
       {loading ? <LoadingScreen overlay /> : null}
       <ScreenHeader back title="Support" right={newTicketBtn} />
 
@@ -123,6 +148,47 @@ export default function SupportScreen() {
                       {STATUS_LABEL[item.status] ?? item.status}
                     </Text>
                   </View>
+=======
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => router.back()} hitSlop={12} accessibilityRole="button" accessibilityLabel="Back">
+          <Ionicons name="arrow-back" size={24} color={Colors.foreground} />
+        </TouchableOpacity>
+        <Text style={[styles.title, { color: Colors.foreground }]}>Support</Text>
+        <TouchableOpacity onPress={() => setShowModal(true)} hitSlop={12} accessibilityRole="button" accessibilityLabel="Raise a new ticket">
+          <Ionicons name="add-circle-outline" size={28} color={Colors.primary} />
+        </TouchableOpacity>
+      </View>
+
+      <FlatList
+        data={tickets}
+        keyExtractor={item => String(item.ticket_id ?? item.id)}
+        contentContainerStyle={styles.list}
+        showsVerticalScrollIndicator={false}
+        ListEmptyComponent={
+          !loading
+            ? <EmptyState
+                icon="headset-outline"
+                title="No support tickets"
+                subtitle="Tap + to raise a new ticket"
+                cta={{ label: 'Raise Ticket', onPress: () => setShowModal(true) }}
+              />
+            : null
+        }
+        renderItem={({ item }) => {
+          const statusColor = STATUS_COLOR[item.status] ?? Colors.mutedForeground;
+          return (
+            <TouchableOpacity
+              style={[styles.ticket, { backgroundColor: Colors.surface, borderColor: Colors.border }, Shadow.sm]}
+              onPress={() => router.push(`/support/${item.ticket_id}`)}
+              activeOpacity={0.85}
+            >
+              <View style={styles.ticketRow}>
+                <Text style={[styles.ticketSubject, { color: Colors.foreground }]} numberOfLines={1}>
+                  {item.subject}
+                </Text>
+                <View style={[styles.statusBadge, { backgroundColor: statusColor + '18' }]}>
+                  <Text style={[styles.statusText, { color: statusColor }]}>{item.status.replace('_', ' ')}</Text>
+>>>>>>> e26961c635b60a007766324f445890a2e88d7232
                 </View>
                 <Text style={[styles.ticketCat, { color: Colors.mutedForeground }]}>{item.category}</Text>
                 {item.admin_reply ? (
@@ -132,6 +198,7 @@ export default function SupportScreen() {
                   </View>
                 ) : null}
               </View>
+<<<<<<< HEAD
             );
           }}
           refreshControl={
@@ -147,6 +214,32 @@ export default function SupportScreen() {
           showsVerticalScrollIndicator={false}
         >
           <Text style={[styles.sheetTitle, { color: Colors.foreground }]}>Raise a ticket</Text>
+=======
+              <View style={styles.ticketRow}>
+                <Text style={[styles.ticketCat, { color: Colors.mutedForeground }]}>
+                  {item.category} · {timeAgo(item.updated_at ?? item.created_at)}
+                </Text>
+                <Ionicons name="chevron-forward" size={16} color={Colors.subtleForeground} />
+              </View>
+            </TouchableOpacity>
+          );
+        }}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} colors={[Colors.primary]} />
+        }
+      />
+
+      {/* New ticket modal */}
+      <Modal visible={showModal} transparent animationType="slide" onRequestClose={() => setShowModal(false)}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.modalOverlay}>
+          <View style={[styles.modalSheet, { backgroundColor: Colors.surface }]}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: Colors.foreground }]}>Raise a Ticket</Text>
+              <TouchableOpacity onPress={() => setShowModal(false)} hitSlop={12} accessibilityRole="button" accessibilityLabel="Close">
+                <Ionicons name="close" size={24} color={Colors.foreground} />
+              </TouchableOpacity>
+            </View>
+>>>>>>> e26961c635b60a007766324f445890a2e88d7232
 
           <View style={styles.field}>
             <Text style={[styles.fieldLabel, { color: Colors.mutedForeground }]}>Category</Text>
@@ -199,6 +292,7 @@ export default function SupportScreen() {
 }
 
 const styles = StyleSheet.create({
+<<<<<<< HEAD
   root:          { flex: 1 },
   list:          { padding: Spacing.base, paddingTop: Spacing.xs, gap: Spacing.sm, flexGrow: 1 },
   ticket:        { borderRadius: Radius.lg, borderWidth: StyleSheet.hairlineWidth, padding: Spacing.base, gap: Spacing.xs },
@@ -217,4 +311,29 @@ const styles = StyleSheet.create({
   categoryRow:   { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
   chip:          { borderRadius: Radius.full, borderWidth: StyleSheet.hairlineWidth, paddingHorizontal: Spacing.md, height: 32, justifyContent: 'center' },
   chipText:      { fontSize: FontSize.sm, fontWeight: FontWeight.medium },
+=======
+  root:         { flex: 1 },
+  header:       { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: Spacing.base },
+  title:        { fontSize: FontSize.h2, fontWeight: FontWeight.bold },
+  list:         { padding: Spacing.base, gap: Spacing.sm, paddingBottom: 40 },
+  ticket:       { borderRadius: Radius.lg, borderWidth: StyleSheet.hairlineWidth, padding: Spacing.base, gap: Spacing.sm },
+  ticketRow:    { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: Spacing.sm },
+  ticketSubject:{ flex: 1, fontSize: FontSize.body, fontWeight: FontWeight.semibold },
+  statusBadge:  { borderRadius: Radius.full, paddingHorizontal: 8, paddingVertical: 3 },
+  statusText:   { fontSize: FontSize.xs, fontWeight: FontWeight.bold },
+  ticketCat:    { fontSize: FontSize.xs },
+  modalOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' },
+  modalSheet:   { borderTopLeftRadius: Radius.xl2, borderTopRightRadius: Radius.xl2, padding: Spacing.base, paddingBottom: 40, gap: Spacing.md },
+  modalHeader:  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  modalTitle:   { fontSize: FontSize.h2, fontWeight: FontWeight.bold },
+  fieldLabel:   { fontSize: FontSize.sm, fontWeight: FontWeight.medium },
+  categoryRow:  { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
+  catChip:      { borderRadius: Radius.full, borderWidth: 1, paddingHorizontal: Spacing.md, paddingVertical: 6 },
+  catChipText:  { fontSize: FontSize.xs, fontWeight: FontWeight.medium },
+  input:        { borderRadius: Radius.md, borderWidth: 1.5, height: 50, paddingHorizontal: Spacing.md, fontSize: FontSize.body },
+  textarea:     { borderRadius: Radius.md, borderWidth: 1.5, padding: Spacing.md, fontSize: FontSize.body, minHeight: 110 },
+  submitBtn:    { borderRadius: Radius.lg, overflow: 'hidden', height: 54 },
+  submitGrad:   { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  submitText:   { color: '#FFF', fontSize: FontSize.body, fontWeight: FontWeight.bold },
+>>>>>>> e26961c635b60a007766324f445890a2e88d7232
 });

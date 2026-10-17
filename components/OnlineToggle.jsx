@@ -9,12 +9,32 @@ export default function OnlineToggle({ isOnline, onToggle, loading }) {
   const { Colors } = useTheme();
 
   return (
+<<<<<<< HEAD
     <View style={[styles.card, { backgroundColor: Colors.surface, borderColor: Colors.border }]}>
       <View style={[styles.dot, { backgroundColor: isOnline ? Colors.success : Colors.subtleForeground }]} />
+=======
+    // The whole card is the tap target — the worker toggles this constantly, often one-handed.
+    <TouchableOpacity
+      style={[styles.wrapper, { backgroundColor: Colors.surface, borderColor: Colors.border }]}
+      onPress={loading ? undefined : onToggle}
+      activeOpacity={0.85}
+      accessibilityRole="switch"
+      accessibilityLabel="Available for jobs"
+      accessibilityState={{ checked: isOnline, busy: !!loading }}
+    >
+      <Animated.View style={[styles.glow, { opacity: glowOpacity }]}>
+        <LinearGradient
+          colors={[onlineColor + '18', 'transparent']}
+          style={StyleSheet.absoluteFill}
+        />
+      </Animated.View>
+
+>>>>>>> e26961c635b60a007766324f445890a2e88d7232
       <View style={styles.textCol}>
         <Text style={[styles.status, { color: Colors.foreground }]}>
           {isOnline ? 'Online' : 'Offline'}
         </Text>
+<<<<<<< HEAD
         <Text style={[styles.sub, { color: Colors.mutedForeground }]}>
           {isOnline ? 'You are receiving job requests' : 'Go online to receive job requests'}
         </Text>
@@ -28,6 +48,25 @@ export default function OnlineToggle({ isOnline, onToggle, loading }) {
         accessibilityLabel="Online status"
       />
     </View>
+=======
+        <Text style={[styles.sub, { color: Colors.subtleForeground }]}>
+          {isOnline ? 'Accepting new job requests' : 'Tap to start accepting jobs'}
+        </Text>
+      </View>
+
+      <View>
+        <View style={[styles.track, { backgroundColor: isOnline ? onlineColor + '30' : Colors.surfaceRaised, borderColor: isOnline ? onlineColor : Colors.border }]}>
+          <Animated.View style={[styles.thumb, { backgroundColor: isOnline ? onlineColor : Colors.mutedForeground, transform: [{ translateX: thumbTranslate }] }]}>
+            <Ionicons
+              name={isOnline ? 'radio-button-on' : 'radio-button-off'}
+              size={14}
+              color={isOnline ? '#FFF' : Colors.surface}
+            />
+          </Animated.View>
+        </View>
+      </View>
+    </TouchableOpacity>
+>>>>>>> e26961c635b60a007766324f445890a2e88d7232
   );
 }
 

@@ -2,12 +2,19 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+<<<<<<< HEAD
 import { router } from 'expo-router';
+=======
+import { LinearGradient } from 'expo-linear-gradient';
+import { router, useLocalSearchParams } from 'expo-router';
+>>>>>>> e26961c635b60a007766324f445890a2e88d7232
 import { useTheme } from '@context/theme';
 import { useAuth } from '@context/auth';
 import { useProvider } from '@context/provider';
 import { FontSize, FontWeight, Spacing, Radius } from '@constants/theme';
+import { alertError } from '@utils/errors';
 import { api } from '@utils/api';
+import { goBackFrom } from '@utils/onboarding';
 import { normalizeService } from '@utils/normalize';
 import OnboardingHeader from '@components/OnboardingHeader';
 import LoadingScreen from '@components/LoadingScreen';
@@ -18,7 +25,8 @@ import Button from '@components/Button';
 export default function ServicesScreen() {
   const { Colors } = useTheme();
   const { token } = useAuth();
-  const { profile } = useProvider();
+  const { profile, fetchProfile } = useProvider();
+  const editing = useLocalSearchParams().mode === 'edit';
 
   const [services, setServices] = useState([]);
   const [selected, setSelected] = useState(new Set());
@@ -37,7 +45,7 @@ export default function ServicesScreen() {
         const raw = Array.isArray(res.data) ? res.data : [];
         setServices(raw.map(normalizeService));
       })
-      .catch(e => Alert.alert('Error', e.message))
+      .catch(e => alertError('Error', e))
       .finally(() => setLoading(false));
   }, [token]);
 
@@ -54,9 +62,10 @@ export default function ServicesScreen() {
     setSaving(true);
     try {
       await api.patch('/providers/me/services', { service_ids: Array.from(selected) }, token);
-      router.push('/onboarding/documents');
+      if (editing) { await fetchProfile(); router.back(); }
+      else router.push('/onboarding/documents');
     } catch (e) {
-      Alert.alert('Error', e.message);
+      alertError('Error', e);
     } finally {
       setSaving(false);
     }
@@ -64,7 +73,19 @@ export default function ServicesScreen() {
 
   return (
     <SafeAreaView style={[styles.root, { backgroundColor: Colors.background }]} edges={['top']}>
+<<<<<<< HEAD
       {loading ? <LoadingScreen overlay /> : null}
+=======
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => goBackFrom('services')} hitSlop={12} accessibilityRole="button" accessibilityLabel="Back">
+          <Ionicons name="arrow-back" size={24} color={Colors.foreground} />
+        </TouchableOpacity>
+        <View style={styles.headerText}>
+          <Text style={[styles.title, { color: Colors.foreground }]}>Services You Offer</Text>
+          <Text style={[styles.sub, { color: Colors.mutedForeground }]}>{selected.size} selected</Text>
+        </View>
+      </View>
+>>>>>>> e26961c635b60a007766324f445890a2e88d7232
 
       <FlatList
         data={loading ? [] : services}
@@ -114,9 +135,25 @@ export default function ServicesScreen() {
         }}
       />
 
+<<<<<<< HEAD
       <FooterBar>
         <Button title="Continue" onPress={handleNext} loading={saving} disabled={selected.size === 0} />
       </FooterBar>
+=======
+      <View style={[styles.footer, { borderTopColor: Colors.border }]}>
+        <TouchableOpacity
+          style={[styles.nextBtn, { opacity: !saving ? 1 : 0.6 }]}
+          onPress={handleNext}
+          disabled={saving}
+          activeOpacity={0.85}
+        >
+          <LinearGradient colors={Colors.gradientPrimary} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.nextGrad}>
+            <Text style={styles.nextText}>{saving ? 'Saving...' : editing ? 'Save' : 'Next: Documents'}</Text>
+            <Ionicons name="arrow-forward" size={18} color="#FFF" />
+          </LinearGradient>
+        </TouchableOpacity>
+      </View>
+>>>>>>> e26961c635b60a007766324f445890a2e88d7232
     </SafeAreaView>
   );
 }

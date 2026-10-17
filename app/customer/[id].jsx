@@ -10,6 +10,11 @@ import { FontSize, FontWeight, Spacing, Radius } from '@constants/theme';
 import ScreenHeader from '@components/ScreenHeader';
 import LoadingScreen from '@components/LoadingScreen';
 import EmptyState from '@components/EmptyState';
+<<<<<<< HEAD
+=======
+import { FontSize, FontWeight, Spacing, Radius, Shadow } from '@constants/theme';
+import { friendlyError } from '@utils/errors';
+>>>>>>> e26961c635b60a007766324f445890a2e88d7232
 
 export default function CustomerProfile() {
   const { id } = useLocalSearchParams();
@@ -27,7 +32,7 @@ export default function CustomerProfile() {
       const res = await api.get(`/customers/${id}/profile`, token);
       setCustomer(res.data);
     } catch (e) {
-      setError(e.message ?? 'Could not load this profile');
+      setError(friendlyError(e, 'Could not load this profile') ?? 'Could not load this profile');
     } finally {
       setLoading(false);
     }

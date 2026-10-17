@@ -1,3 +1,6 @@
+import { fromPaise } from '@utils/money';
+
+// Money fields arrive in paise; every normalizer returns rupees.
 const COUPON_COLORS = ['#6366F1', '#8B5CF6', '#F59E0B', '#10B981', '#3B82F6', '#EC4899'];
 
 export function normalizeCategory(cat) {
@@ -24,7 +27,7 @@ export function normalizeService(svc) {
     categoryId: svc.category_id,
     name: svc.name,
     description: svc.description ?? '',
-    basePrice: svc.base_price ?? 0,
+    basePrice: fromPaise(svc.base_price),
     rating: svc.rating ? Number(svc.rating) : 4.5,
     reviewCount: svc.review_count ?? 0,
     duration: svc.duration ?? 60,
@@ -43,9 +46,10 @@ export function normalizeBooking(b) {
   return {
     id: b.booking_id,
     status: b.status ?? 'PENDING',
-    scheduledAt: b.scheduled_at,
-    totalAmount: b.total_amount ?? 0,
+    scheduledAt: isoUtc(b.scheduled_at),
+    totalAmount: fromPaise(b.total_amount),
     paymentStatus: b.payment_status,
+    paymentMode: b.payment_mode ?? 'PAY_AFTER',
     service: {
       id: b.service_id,
       name: snap?.name ?? 'Service',
@@ -67,22 +71,62 @@ export function normalizeNotification(n) {
     system:   { icon: 'information-circle-outline', color: '#3B82F6' },
     payment:  { icon: 'card-outline',               color: '#10B981' },
   };
-  const cfg = NOTIF_CONFIG[n.type] ?? NOTIF_CONFIG.system;
+  // Backend types are e.g. job_available / booking_update / payment_confirmed.
+  const kind = /job|booking|instant/.test(n.type ?? '') ? 'booking'
+    : /pay|payout|dues/.test(n.type ?? '') ? 'payment'
+    : /track|navigate/.test(n.type ?? '') ? 'tracking'
+    : n.type;
+  const cfg = NOTIF_CONFIG[kind] ?? NOTIF_CONFIG.system;
+  let data = n.data ?? {};
+  if (typeof data === 'string') { try { data = JSON.parse(data); } catch { data = {}; } }
   return {
     id: n.notification_id,
     type: n.type,
+    data: { type: n.type, ...data },
     icon: cfg.icon,
     color: cfg.color,
     read: !!n.read_ind,
     title: n.title,
     body: n.body,
-    time: timeAgo(n.created_at),
+    time: notifTimeLabel(n.created_at),
   };
+}
+
+/** Epoch ms for an API timestamp. The DB stores naive UTC — without a zone suffix it must be read as UTC, not local time. */
+export function parseUtcMs(v) {
+  if (!v) return null;
+  // Python isoformat() gives microseconds; Hermes only parses up to milliseconds.
+  let s = String(v).trim().replace(' ', 'T').replace(/(\.\d{3})\d+/, '$1');
+  if (!/(Z|[+-]\d{2}:?\d{2})$/.test(s)) s += 'Z';
+  const ms = Date.parse(s);
+  return Number.isNaN(ms) ? null : ms;
+}
+
+/** "4:32 PM · 5 min ago", "Yesterday, 9:10 AM", "12 Oct, 4:32 PM" — the real time a notification arrived. */
+function isoUtc(v) {
+  const ms = parseUtcMs(v);
+  return ms == null ? null : new Date(ms).toISOString();
+}
+
+export function notifTimeLabel(value) {
+  const ms = parseUtcMs(value);
+  if (ms == null) return '';
+  const d = new Date(ms);
+  const clock = d.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit', hour12: true });
+  const startOfToday = new Date(); startOfToday.setHours(0, 0, 0, 0);
+  if (ms >= startOfToday.getTime()) {
+    const mins = Math.max(0, Math.floor((Date.now() - ms) / 60000));
+    const ago = mins < 1 ? 'Just now' : mins < 60 ? `${mins} min ago` : null;
+    return ago ? `${clock} · ${ago}` : `Today, ${clock}`;
+  }
+  if (ms >= startOfToday.getTime() - 86400000) return `Yesterday, ${clock}`;
+  const sameYear = d.getFullYear() === new Date().getFullYear();
+  return `${d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', ...(sameYear ? {} : { year: 'numeric' }) })}, ${clock}`;
 }
 
 export function timeAgo(dateStr) {
   if (!dateStr) return '';
-  const diff = (Date.now() - new Date(dateStr).getTime()) / 1000;
+  const diff = (Date.now() - (parseUtcMs(dateStr) ?? Date.now())) / 1000;
   if (diff < 60) return 'Just now';
   if (diff < 3600) return `${Math.floor(diff / 60)} min ago`;
   if (diff < 86400) return `${Math.floor(diff / 3600)} hours ago`;
@@ -104,15 +148,35 @@ export function normalizeJob(b) {
     customerName:    b.customer_name ?? 'Customer',
     customerPhoto:   b.customer_photo ?? null,
     status:          b.status ?? 'PENDING',
-    scheduledAt:     b.scheduled_at,
-    totalAmount:     b.total_amount ?? 0,
-    platformFee:     b.platform_fee ?? 0,
-    providerEarning: (b.total_amount ?? 0) - (b.platform_fee ?? 0),
+    // Backend datetimes are naive UTC — ISO with Z so new Date() never reads them as local time.
+    scheduledAt:     isoUtc(b.scheduled_at),
+    // An open request disappears (customer told "no expert") once this passes.
+    expiresAt:       isoUtc(b.expires_at),
+    totalAmount:     fromPaise(b.total_amount),
+    platformFee:     fromPaise(b.platform_fee),
+    // Full job price before customer discounts (coupons/coins/plan are platform-funded).
+    jobPrice:        fromPaise(Number(b.sub_total) || Number(b.total_amount) || 0),
+    // Discounts are platform-funded: the worker earns on the full job price (sub_total).
+    providerEarning: fromPaise((Number(b.sub_total) || Number(b.total_amount) || 0) - (Number(b.platform_fee) || 0)),
     paymentStatus:   b.payment_status,
+    paymentMode:     b.payment_mode ?? 'PAY_AFTER',
     isInstant:       !!b.is_instant,
     doorOtp:         b.door_otp ?? null,
     doorOtpVerified: !!b.door_otp_verified,
+    // Customer matched the worker with their profile photo — they can now see the door code.
+    identityConfirmedAt: b.identity_confirmed_at ?? null,
     proofPhotos:     Array.isArray(proof) ? proof : [],
+    // Two-sided completion: the job is COMPLETED only after both tap Done.
+    providerDoneAt:  b.provider_done_at ?? null,
+    customerDoneAt:  b.customer_done_at ?? null,
+    disputedAt:      b.completion_disputed_at ?? null,
+    // Only the detail endpoint returns items; list rows leave this empty.
+    items: Array.isArray(b.items) ? b.items.map(i => ({
+      id:       String(i.item_id ?? i.sub_service_id),
+      name:     i.name_snapshot ?? 'Item',
+      price:    fromPaise(i.price_snapshot ?? i.price),
+      quantity: i.quantity ?? 1,
+    })) : [],
     customerNotes:   b.customer_notes ?? '',
     service: {
       id:       b.service_id,
@@ -134,7 +198,7 @@ export function normalizeEarning(e) {
   return {
     id:        e.earning_id,
     bookingId: e.booking_id,
-    amount:    e.amount ?? 0,
+    amount:    fromPaise(e.amount),
     type:      e.type ?? 'BOOKING',
     createdAt: e.created_at,
     timeAgo:   timeAgo(e.created_at),
@@ -150,7 +214,7 @@ export function normalizeProvider(p) {
     avgRating:      p.avg_rating ?? 0,
     totalReviews:   p.total_reviews ?? 0,
     acceptanceRate: p.acceptance_rate ?? 1,
-    walletBalance:  p.wallet_balance ?? 0,
+    walletBalance:  fromPaise(p.wallet_balance),
     bankAccount:    p.bank_account_number ?? '',
     bankIfsc:       p.bank_ifsc ?? '',
     bio:            p.bio ?? '',

@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+  <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0" stop-color="#1B1A45"/>
+    <stop offset="0.55" stop-color="#0F0E2A"/>
+    <stop offset="1" stop-color="#07061A"/>
+  </linearGradient>
+  <radialGradient id="halo" cx="0.5" cy="0.5" r="0.5">
+    <stop offset="0" stop-color="#6366F1" stop-opacity="0.35"/>
+    <stop offset="0.6" stop-color="#6366F1" stop-opacity="0.08"/>
+    <stop offset="1" stop-color="#6366F1" stop-opacity="0"/>
+  </radialGradient>
+  <radialGradient id="warm" cx="0.9" cy="0.95" r="0.55">
+    <stop offset="0" stop-color="#EC4899" stop-opacity="0.22"/>
+    <stop offset="1" stop-color="#EC4899" stop-opacity="0"/>
+  </radialGradient>
+  <linearGradient id="stroke" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0" stop-color="#818CF8"/>
+    <stop offset="0.5" stop-color="#A78BFA"/>
+    <stop offset="1" stop-color="#F472B6"/>
+  </linearGradient>
+  <radialGradient id="gold" cx="0.5" cy="0.4" r="0.6">
+    <stop offset="0" stop-color="#FFF4C2"/>
+    <stop offset="0.55" stop-color="#FCD34D"/>
+    <stop offset="1" stop-color="#F59E0B"/>
+  </radialGradient>
+  <radialGradient id="goldGlow" cx="0.5" cy="0.5" r="0.5">
+    <stop offset="0" stop-color="#FCD34D" stop-opacity="0.45"/>
+    <stop offset="0.45" stop-color="#FCD34D" stop-opacity="0.14"/>
+    <stop offset="1" stop-color="#FCD34D" stop-opacity="0"/>
+  </radialGradient>
+  <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
+    <feGaussianBlur stdDeviation="18" result="b"/>
+    <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+  </filter></defs>
+  
+  <rect width="1024" height="1024" fill="url(#bg)"/>
+  <rect width="1024" height="1024" fill="url(#warm)"/>
+  <path transform="translate(812 214) scale(24)" fill="#FFFFFF" opacity="0.5"
+     d="M0 -1 C0.1 -0.28 0.28 -0.1 1 0 C0.28 0.1 0.1 0.28 0 1 C-0.1 0.28 -0.28 0.1 -1 0 C-0.28 -0.1 -0.1 -0.28 0 -1 Z"/>
+  <path transform="translate(862 290) scale(11)" fill="#FFFFFF" opacity="0.3"
+     d="M0 -1 C0.1 -0.28 0.28 -0.1 1 0 C0.28 0.1 0.1 0.28 0 1 C-0.1 0.28 -0.28 0.1 -1 0 C-0.28 -0.1 -0.1 -0.28 0 -1 Z"/>
+  <path transform="translate(190 820) scale(14)" fill="#A78BFA" opacity="0.35"
+     d="M0 -1 C0.1 -0.28 0.28 -0.1 1 0 C0.28 0.1 0.1 0.28 0 1 C-0.1 0.28 -0.28 0.1 -1 0 C-0.28 -0.1 -0.1 -0.28 0 -1 Z"/>
+  <g transform="translate(512 522) scale(1.28) translate(-300 -270)">
+    <circle cx="300" cy="280" r="330" fill="url(#halo)"/>
+    <g filter="url(#glow)">
+      <path d="M100 440 L100 212 L200 104 L300 232 L400 104 L500 212 L500 440" fill="none" stroke="url(#stroke)" stroke-width="66" stroke-linecap="round" stroke-linejoin="round"/>
+    </g>
+    <circle cx="300" cy="352" r="130" fill="url(#goldGlow)"/>
+    <path transform="translate(300 352) scale(62)" fill="url(#gold)" opacity="1"
+     d="M0 -1 C0.1 -0.28 0.28 -0.1 1 0 C0.28 0.1 0.1 0.28 0 1 C-0.1 0.28 -0.28 0.1 -1 0 C-0.28 -0.1 -0.1 -0.28 0 -1 Z"/>
+  </g>
+</svg>

@@ -1,18 +1,15 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
-import { AppState, Alert } from 'react-native';
-import * as Location from 'expo-location';
-import * as Notifications from 'expo-notifications';
+import { AppState } from 'react-native';
+import { router } from 'expo-router';
+import Notifications from '@utils/notifications';
 import { api } from '@utils/api';
+import { reconcileTracking, hasTrackingPermission } from '@utils/location';
 import { useAuth } from '@context/auth';
 
 const ProviderContext = createContext({});
 
-async function hasFullLocationPermission() {
-  const fg = await Location.getForegroundPermissionsAsync();
-  if (fg.status !== 'granted') return false;
-  const bg = await Location.getBackgroundPermissionsAsync();
-  return bg.status === 'granted';
-}
+// Foreground-only in Expo Go (see IS_EXPO_GO in utils/location.js)
+const hasFullLocationPermission = hasTrackingPermission;
 
 export function ProviderProvider({ children }) {
   const { token } = useAuth();
@@ -30,8 +27,11 @@ export function ProviderProvider({ children }) {
     return ok;
   }, []);
 
+  // GET /providers/me never 404s — the backend creates a PENDING record on the
+  // first call, so a brand-new worker comes back as status PENDING.
+  // Resolves the fresh profile (or null on failure) so callers can route on it.
   const fetchProfile = useCallback(async () => {
-    if (!token) return;
+    if (!token) return null;
     setLoading(true);
     try {
       const res = await api.get('/providers/me', token);
@@ -40,12 +40,17 @@ export function ProviderProvider({ children }) {
       setIsAvailable(!!p.is_available);
       return p;
     } catch (e) {
+<<<<<<< HEAD
       if (e.status === 404) {
         setProfile(null); // new user — no provider record yet
         return null;
       }
       console.warn('[Provider] fetchProfile failed:', e.message);
       return undefined;
+=======
+      console.warn('[Provider] fetchProfile failed:', e.message);
+      return null;
+>>>>>>> e26961c635b60a007766324f445890a2e88d7232
     } finally {
       setLoading(false);
       setProfileLoaded(true);
@@ -57,6 +62,7 @@ export function ProviderProvider({ children }) {
     if (token) {
       fetchProfile();
       refreshLocationPermission();
+      reconcileTracking(token);
     } else {
       setProfile(null);
       setIsAvailable(false);
@@ -70,6 +76,7 @@ export function ProviderProvider({ children }) {
   useEffect(() => {
     const sub = AppState.addEventListener('change', async (state) => {
       if (state !== 'active' || !token) return;
+      reconcileTracking(token);
       const ok = await refreshLocationPermission();
       if (!ok && isAvailableRef.current) {
         setIsAvailable(false);
@@ -79,7 +86,7 @@ export function ProviderProvider({ children }) {
           console.warn('[Provider] location-revoked report failed:', e.message);
         }
         try {
-          await Notifications.scheduleNotificationAsync({
+          await Notifications?.scheduleNotificationAsync({
             content: {
               title: 'You are now offline',
               body: 'Location access was turned off, so we stopped sharing your position with customers.',
@@ -99,10 +106,9 @@ export function ProviderProvider({ children }) {
     if (next) {
       const ok = await refreshLocationPermission();
       if (!ok) {
-        Alert.alert(
-          'Location Required',
-          'Turn on location access — including "Allow all the time" in Settings — before going online. Customers need to be able to see you on the way.'
-        );
+        // Explain why before any OS prompt (Play's prominent-disclosure rule);
+        // the screen brings the worker online once permission is granted.
+        router.push('/permissions?then=online');
         return;
       }
     }

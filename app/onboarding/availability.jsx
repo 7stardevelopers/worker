@@ -7,9 +7,13 @@ import { useTheme } from '@context/theme';
 import { useAuth } from '@context/auth';
 import { FontSize, FontWeight, Spacing, Radius } from '@constants/theme';
 import { api } from '@utils/api';
+<<<<<<< HEAD
 import OnboardingHeader from '@components/OnboardingHeader';
 import FooterBar from '@components/FooterBar';
 import Button from '@components/Button';
+=======
+import { goBackFrom } from '@utils/onboarding';
+>>>>>>> e26961c635b60a007766324f445890a2e88d7232
 
 const DAYS  = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const SLOTS = [
@@ -51,17 +55,36 @@ export default function AvailabilityScreen() {
     } finally {
       setSaving(false);
     }
+<<<<<<< HEAD
     Alert.alert(
       'Application submitted',
       'Your profile is now under review. We will notify you within 24 hours once approved.',
       [{ text: 'OK', onPress: () => router.replace('/') }]
     );
+=======
+    // Last step is the camera selfie — saving it submits the application.
+    router.push('/onboarding/photo');
+>>>>>>> e26961c635b60a007766324f445890a2e88d7232
   };
 
   return (
     <SafeAreaView style={[styles.root, { backgroundColor: Colors.background }]} edges={['top']}>
+<<<<<<< HEAD
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <OnboardingHeader step={5} title="Availability" subtitle="Tap the slots when you can usually take jobs." />
+=======
+      <ScrollView contentContainerStyle={styles.scroll}>
+
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => goBackFrom('availability')} hitSlop={12} accessibilityRole="button" accessibilityLabel="Back">
+            <Ionicons name="arrow-back" size={24} color={Colors.foreground} />
+          </TouchableOpacity>
+          <View>
+            <Text style={[styles.title, { color: Colors.foreground }]}>Availability</Text>
+            <Text style={[styles.sub, { color: Colors.mutedForeground }]}>Choose your working hours</Text>
+          </View>
+        </View>
+>>>>>>> e26961c635b60a007766324f445890a2e88d7232
 
         <View style={styles.grid}>
           <View style={styles.gridRow}>
@@ -108,9 +131,25 @@ export default function AvailabilityScreen() {
         </Text>
       </ScrollView>
 
+<<<<<<< HEAD
       <FooterBar>
         <Button title="Submit application" onPress={handleSubmit} disabled={count === 0} loading={saving} />
       </FooterBar>
+=======
+      <View style={[styles.footer, { borderTopColor: Colors.border }]}>
+        <TouchableOpacity
+          style={[styles.submitBtn, { opacity: !saving ? 1 : 0.6 }]}
+          onPress={handleSubmit}
+          disabled={saving}
+          activeOpacity={0.85}
+        >
+          <LinearGradient colors={Colors.gradientPrimary} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.submitGrad}>
+            <Text style={styles.submitText}>{saving ? 'Saving...' : 'Next: Profile photo'}</Text>
+            <Ionicons name="arrow-forward" size={18} color="#FFF" />
+          </LinearGradient>
+        </TouchableOpacity>
+      </View>
+>>>>>>> e26961c635b60a007766324f445890a2e88d7232
     </SafeAreaView>
   );
 }

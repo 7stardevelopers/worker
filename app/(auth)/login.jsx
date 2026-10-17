@@ -6,6 +6,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useTheme } from '@context/theme';
 import { FontSize, FontWeight, Spacing, Radius } from '@constants/theme';
+import { APP_NAME } from '@constants/brand';
+import { friendlyError } from '@utils/errors';
 import { api } from '@utils/api';
 import BrandMark from '@components/BrandMark';
 import Button from '@components/Button';
@@ -37,7 +39,7 @@ export default function LoginScreen() {
       await api.post('/auth/send-otp', { phone });
       router.push({ pathname: '/(auth)/otp', params: { phone } });
     } catch (e) {
-      setError(e.message);
+      setError(friendlyError(e) ?? '');
       triggerShake();
     } finally {
       setLoading(false);
@@ -49,10 +51,25 @@ export default function LoginScreen() {
       <KeyboardAvoidingView behavior="padding" style={styles.flex}>
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
 
+<<<<<<< HEAD
           <View style={styles.brand}>
             <BrandMark size={56} />
             <Text style={[styles.appName, { color: Colors.foreground }]}>7StarWorker</Text>
             <Text style={[styles.tagline, { color: Colors.mutedForeground }]}>Partner app</Text>
+=======
+          <View style={styles.hero}>
+            <LinearGradient
+              colors={['#6366F1', '#8B5CF6']}
+              start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+              style={styles.logoBox}
+            >
+              <Text style={styles.logoText}>M</Text>
+            </LinearGradient>
+            <Text style={[styles.appName, { color: Colors.foreground }]}>{APP_NAME}</Text>
+            <Text style={[styles.tagline, { color: Colors.mutedForeground }]}>
+              Expert Partner App
+            </Text>
+>>>>>>> e26961c635b60a007766324f445890a2e88d7232
           </View>
 
           <View style={styles.form}>

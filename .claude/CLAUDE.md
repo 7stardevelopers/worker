@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What This App Is
 
-7StarWorker is the **provider-facing** React Native app (Expo SDK 54) for the 7StarExperts home services platform. Providers (workers) receive job requests via push notifications, navigate to customers, verify door OTPs, complete jobs with proof photos, and request wallet payouts.
+7StarWorker is the **provider-facing** React Native app (Expo SDK 57, React Native 0.86) for the 7StarExperts home services platform. Providers (workers) receive job requests via push notifications, navigate to customers, verify door OTPs, complete jobs with proof photos, and request wallet payouts.
 
 The companion customer app lives at `../Customer/` — both apps share the same design system, auth pattern, and backend.
 
@@ -44,18 +44,24 @@ app/(auth)/             Login (phone entry) + OTP verification
 app/(tabs)/             3-tab shell: Jobs | Earnings | Profile
 app/job/[id].jsx        Job detail + full lifecycle (most complex screen)
 app/onboarding/         5-step onboarding: personal → services → documents → bank → availability
-app/pending.jsx         Shown when provider.status = PENDING (awaiting admin approval)
+app/pending.jsx         Complete application awaiting admin approval
+app/suspended.jsx       provider.status = SUSPENDED
 app/support/index.jsx   Raise and view support tickets
 app/notifications.jsx   Notification history
 ```
 
 ### Provider Status Flow
 
-After OTP login, `app/index.jsx` routes based on `provider.status`:
+After OTP login, `app/index.jsx` routes via `routeForProvider()` in `utils/onboarding.js`.
+`GET /providers/me` never 404s — the backend creates a PENDING record on first call, so a
+brand-new worker also comes back as PENDING.
 - No token → `/(auth)/login`
 - `APPROVED` → `/(tabs)`
-- `PENDING` → `/pending`
-- Anything else (new user / rejected / incomplete) → `/onboarding/personal`
+- `SUSPENDED` → `/suspended`
+- `PENDING` with onboarding unfinished → first incomplete step (name → services → documents
+  from `GET /documents/mine`, rejected counts as missing → bank)
+- `PENDING` and complete → `/pending`
+- Profile fetch fails → Retry screen
 
 ### Context Providers (nested in `app/_layout.jsx`)
 
@@ -81,11 +87,19 @@ api.patch(path, body, token)
 api.delete(path, token)
 ```
 
-Throws on non-2xx. Base URL from `process.env.EXPO_PUBLIC_API_BASE_URL`.
+Throws `Error(message)` with `.status` on non-2xx. Base URL from `process.env.EXPO_PUBLIC_API_BASE_URL`.
+- Silent refresh on 401 via `refreshSession()` — single in-flight refresh, and the **rotated
+  refresh token is stored** (the backend revokes the old one on every refresh).
+- Unrecoverable 401 throws `SESSION_EXPIRED` and fires the session-expired callback once.
+- 20 s timeout; non-JSON bodies (e.g. API Gateway 413) don't crash the caller.
+- Show errors with `alertError()` / `friendlyError()` from `utils/errors.js`, never raw `e.message`.
+- Every attempt is dev-logged by `logApi()` (`utils/apiLog.js`): `✅/❌ status METHOD path (ms)` plus the
+  redacted payload/response, in the Metro terminal and DevTools console. Full raw requests are in the
+  React Native DevTools **Network** tab (`j` in the Expo terminal). Nothing is logged in release builds.
 
 ### Data Normalization (`utils/normalize.js`)
 
-All API responses are passed through normalizers before use in components:
+All API responses are passed through normalizers before use in components (they also convert money from paise to rupees):
 - `normalizeJob(b)` — booking from provider POV (includes `providerEarning`, `doorOtp`, `proofPhotos`, `address.lat/lng`)
 - `normalizeEarning(e)` — earning record
 - `normalizeProvider(p)` — provider profile
@@ -95,28 +109,57 @@ All API responses are passed through normalizers before use in components:
 
 `TaskManager.defineTask` must run at module level. The file is imported in `app/_layout.jsx` so the task registers at app startup.
 
-- `startLocationBroadcast(bookingId)` — starts background GPS; stores `active_booking_id` in AsyncStorage
-- `stopLocationBroadcast()` — stops task, clears stored booking ID
-- Sends `PATCH /providers/me/location { lat, lng }` every 10 seconds or 20 meters
+- `startLocationTracking({ silent })` — starts background GPS (silent = only if permission already granted)
+- `stopLocationTracking()` — stops the task
+- `reconcileTracking(token)` — runs on login and every app foreground: stops GPS when no job needs it,
+  silently resumes it for a live job (EN_ROUTE / IN_PROGRESS, or ACCEPTED within 60 min)
+- The task sends `PATCH /providers/me/location { lat, lng }` through `api.js`, so expired tokens refresh
+- Logout stops tracking, goes offline, unregisters the push token and revokes the refresh token
 
-### S3 Document Upload (`utils/s3Upload.js`)
+### Uploads
 
-```
-POST /documents/upload-url { doc_type }  →  { presigned_url, s3_key }
-uploadToS3(presignedUrl, fileUri)         →  binary PUT via expo-file-system
-POST /documents/confirm { doc_type, s3_key }
-```
+Always shrink photos with `compressImage()` (`utils/image.js`, ~1600px JPEG) before uploading.
+- **Documents:** `POST /documents/upload { doc_type, content_type, file_content }` with base64
+  content — requests are capped at ~6 MB by Lambda, which is why compression is mandatory.
+- **Proof photos:** `POST /media/presign { content_type, folder: 'proof' }` → `uploadToS3()`
+  (`utils/s3Upload.js`) → `POST /bookings/:id/complete { proof_photos }`.
 
 ## Key Conventions
 
 1. **Styling**: `StyleSheet.create` only — never inline style objects. Colors always from `useTheme()`, never hardcoded.
 
-2. **Amounts**: All monetary values from the API are in **paise** (₹1 = 100 paise). Display as: `₹${(amount / 100).toLocaleString('en-IN')}`.
+2. **Amounts**: The API stores, returns and accepts every money value (`base_price`, `price_snapshot`,
+   `total_amount`, `platform_fee`, earning/payout `amount`, `wallet_balance`, earnings `stats`) as integer
+   **paise** (₹499 = `49900`). Convert to rupees at the boundary — the normalizers in `utils/normalize.js`
+   already do; for raw fields (e.g. `profile.wallet_balance`, earnings `stats`) use `fromPaise()` from
+   `utils/money.js`. Components only ever see rupees; display with `formatINR()` (rupees). Anything sent
+   back (e.g. `POST /payments/payout-request { amount }`) must go through `toPaise()`.
 
 3. **Status colors**: Use `Colors.status[booking.status]` from `constants/theme.js` — the `statusMap` covers `PENDING | ACCEPTED | EN_ROUTE | IN_PROGRESS | COMPLETED | CANCELLED | REJECTED`.
 
 4. **Screen refresh on focus**: Job screens use `useFocusEffect(useCallback(() => { fetchJob(); }, [id]))` to reload data when navigating back.
 
-5. **Push notifications**: `app/_layout.jsx` routes on notification tap. `app/(tabs)/index.jsx` listens for foreground `job_request` notifications to show `JobRequestModal`.
+5. **Push notifications**: tap routing lives in `utils/notificationRouting.js` (a tap that cold-starts the app is
+   opened by the jobs tab once the auth gate is done). While the app is open, pushes show as the in-app toast, not the
+   system banner. `utils/useJobFeed.js` refreshes on `job_available` and the jobs tab shows `JobRequestModal`.
+   For success or event feedback use `toast.success/info/warning/error(title, message, { onPress })` from
+   `components/Toast.jsx`. Keep `Alert.alert` for confirmations and blocking errors.
 
-6. **Token refresh**: Not yet implemented. 15-minute JWT expiry means users may need to re-login. Implement silent refresh (`POST /auth/refresh`) before Week 5.
+5a. **Instant vs scheduled jobs**: `job.isInstant` = the customer booked "Now" (push `type: instant_job`, longer
+   vibration, ⚡ in `JobRequestModal` / `JobCard`, listed first by `groupJobs`). The backend offers open requests in
+   rounds and cancels them if nobody accepts by `job.expiresAt` (`isExpiredRequest` hides them). Accepting can fail with
+   "You already have a job at … that overlaps this one" / "Finish your current job before taking an instant job" —
+   show it with `alertError`. Times from the API are naive UTC; normalizers convert `scheduledAt`/`expiresAt` to ISO `Z`.
+
+6. **Token refresh**: Handled silently in `utils/api.js` (15-minute access tokens) — screens never deal with it.
+
+7. **Branding**: The visible name comes from `constants/brand.js` (`APP_NAME` = "MULTIOKS Partner"). Never hardcode it.
+   Build identifiers (bundle id, package, slug, EAS project) intentionally still use the old names.
+
+8. **Location permission**: Never call `Location.request*PermissionsAsync` directly — send the worker to
+   `/permissions` (`?then=online` to go online afterwards). It's the prominent disclosure Google Play requires
+   before background location. `startLocationTracking()` already does this when permission is missing.
+
+9. **Offline**: `components/OfflineBanner.jsx` (mounted in `app/_layout.jsx`) shows app-wide when there's no internet.
+
+10. **Accessibility**: Icon-only buttons need `accessibilityLabel` and `hitSlop`; toggles use `accessibilityRole="switch"`.

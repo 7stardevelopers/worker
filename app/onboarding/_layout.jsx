@@ -5,6 +5,7 @@ export default function OnboardingLayout() {
   const { Colors } = useTheme();
 
   return (
+<<<<<<< HEAD
     <Stack
       screenOptions={{
         headerShown: false,
@@ -17,6 +18,15 @@ export default function OnboardingLayout() {
       <Stack.Screen name="documents"    />
       <Stack.Screen name="bank"         />
       <Stack.Screen name="availability" />
+=======
+    <Stack screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="personal"     />
+      <Stack.Screen name="services"     options={{ animation: 'slide_from_right' }} />
+      <Stack.Screen name="documents"    options={{ animation: 'slide_from_right' }} />
+      <Stack.Screen name="bank"         options={{ animation: 'slide_from_right' }} />
+      <Stack.Screen name="availability" options={{ animation: 'slide_from_right' }} />
+      <Stack.Screen name="photo"        options={{ animation: 'slide_from_right', gestureEnabled: false }} />
+>>>>>>> e26961c635b60a007766324f445890a2e88d7232
     </Stack>
   );
 }
