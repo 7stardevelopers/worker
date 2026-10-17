@@ -7,14 +7,6 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
     "scheme": "starworker",
-<<<<<<< HEAD
-    "splash": {
-      "image": "./assets/splash.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#000000"
-    },
-=======
->>>>>>> e26961c635b60a007766324f445890a2e88d7232
     "assetBundlePatterns": [
       "**/*"
     ],

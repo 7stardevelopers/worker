@@ -1,10 +1,3 @@
-<<<<<<< HEAD
-import { useEffect } from 'react';
-import { router } from 'expo-router';
-import { useAuth } from '@context/auth';
-import { useProvider } from '@context/provider';
-import LoadingScreen from '@components/LoadingScreen';
-=======
 import { useCallback, useEffect, useState } from 'react';
 import { View, Text, ActivityIndicator, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,7 +8,6 @@ import { useTheme } from '@context/theme';
 import { routeForProvider } from '@utils/onboarding';
 import { FontSize, FontWeight, Spacing, Radius } from '@constants/theme';
 import { APP_NAME } from '@constants/brand';
->>>>>>> e26961c635b60a007766324f445890a2e88d7232
 
 export default function Index() {
   const { Colors } = useTheme();
@@ -40,9 +32,6 @@ export default function Index() {
     route();
   }, [authLoading, token]);
 
-<<<<<<< HEAD
-  return <LoadingScreen brand />;
-=======
   return (
     <View style={[styles.root, { backgroundColor: Colors.background }]}>
       {failed ? (
@@ -65,7 +54,6 @@ export default function Index() {
       )}
     </View>
   );
->>>>>>> e26961c635b60a007766324f445890a2e88d7232
 }
 
 const styles = StyleSheet.create({

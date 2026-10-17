@@ -1,14 +1,11 @@
 import { Tabs } from 'expo-router';
-import { useTheme } from '@context/theme';
-import TabBar from '@components/TabBar';
+import FloatingTabBar from '@components/FloatingTabBar';
 
 export default function TabsLayout() {
-  const { Colors } = useTheme();
-
   return (
     <Tabs
-      tabBar={props => <TabBar {...props} />}
-      screenOptions={{ headerShown: false, sceneStyle: { backgroundColor: Colors.background } }}
+      tabBar={props => <FloatingTabBar {...props} />}
+      screenOptions={{ headerShown: false }}
     >
       <Tabs.Screen name="index"    options={{ title: 'Jobs'     }} />
       <Tabs.Screen name="earnings" options={{ title: 'Earnings' }} />

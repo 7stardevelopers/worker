@@ -40,17 +40,8 @@ export function ProviderProvider({ children }) {
       setIsAvailable(!!p.is_available);
       return p;
     } catch (e) {
-<<<<<<< HEAD
-      if (e.status === 404) {
-        setProfile(null); // new user — no provider record yet
-        return null;
-      }
-      console.warn('[Provider] fetchProfile failed:', e.message);
-      return undefined;
-=======
       console.warn('[Provider] fetchProfile failed:', e.message);
       return null;
->>>>>>> e26961c635b60a007766324f445890a2e88d7232
     } finally {
       setLoading(false);
       setProfileLoaded(true);
