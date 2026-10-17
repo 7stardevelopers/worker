@@ -1,6 +1,6 @@
 import '../global.css';
-import React, { useState, useEffect } from 'react';
-import { Platform } from 'react-native';
+import React, { useEffect } from 'react';
+import { Platform, StyleSheet } from 'react-native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -12,7 +12,6 @@ import { router } from 'expo-router';
 import { AuthProvider } from '@context/auth';
 import { ThemeProvider, useTheme } from '@context/theme';
 import { ProviderProvider } from '@context/provider';
-import SplashOverlay from '@components/Splash';
 import OfflineBanner from '@components/OfflineBanner';
 import ToastHost, { toast } from '@components/Toast';
 import '@utils/location';
@@ -49,8 +48,7 @@ if (Notifications && Platform.OS === 'android') {
 }
 
 function AppContent() {
-  const [showSplash, setShowSplash] = useState(true);
-  const { isDark } = useTheme();
+  const { isDark, Colors } = useTheme();
 
   useEffect(() => {
     if (!Notifications) return undefined;
@@ -80,7 +78,8 @@ function AppContent() {
   return (
     <>
       <StatusBar style={isDark ? 'light' : 'dark'} />
-      <Stack screenOptions={{ headerShown: false, animation: 'fade' }}>
+      <Stack screenOptions={{ headerShown: false, animation: 'fade', contentStyle: { backgroundColor: Colors.background } }}>
+        <Stack.Screen name="index"                options={{ animation: 'none' }} />
         <Stack.Screen name="(auth)"               options={{ animation: 'none' }} />
         <Stack.Screen name="(tabs)"               options={{ animation: 'none' }} />
         <Stack.Screen name="job/[id]"             options={{ animation: 'slide_from_right' }} />
@@ -96,14 +95,13 @@ function AppContent() {
       </Stack>
       <OfflineBanner />
       <ToastHost />
-      {showSplash && <SplashOverlay onDone={() => setShowSplash(false)} />}
     </>
   );
 }
 
 export default function RootLayout() {
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
+    <GestureHandlerRootView style={styles.root}>
       <SafeAreaProvider>
         <ThemeProvider>
           <AuthProvider>
@@ -116,3 +114,7 @@ export default function RootLayout() {
     </GestureHandlerRootView>
   );
 }
+
+const styles = StyleSheet.create({
+  root: { flex: 1 },
+});

@@ -10,6 +10,7 @@ const statusMap = {
 
 export const DarkColors = {
   primary:           '#6366F1',
+  onPrimary:         '#FFFFFF',
   primaryDark:       '#4F46E5',
   primaryLight:      '#312e81',
   secondary:         '#8B5CF6',
@@ -38,10 +39,12 @@ export const DarkColors = {
   gradientAccent:    ['#F59E0B', '#FBBF24'],
   tabBarBg:          'rgba(18,18,20,0.96)',
   headerBg:          'rgba(0,0,0,0.85)',
+  backdrop:          'rgba(0,0,0,0.55)',
 };
 
 export const LightColors = {
   primary:           '#4F46E5',
+  onPrimary:         '#FFFFFF',
   primaryDark:       '#4338CA',
   primaryLight:      '#EEF2FF',
   secondary:         '#7C3AED',
@@ -70,6 +73,7 @@ export const LightColors = {
   gradientAccent:    ['#D97706', '#F59E0B'],
   tabBarBg:          'rgba(248,248,252,0.96)',
   headerBg:          'rgba(242,242,247,0.85)',
+  backdrop:          'rgba(0,0,0,0.4)',
 };
 
 export function getColors(isDark) {

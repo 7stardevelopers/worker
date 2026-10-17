@@ -26,7 +26,7 @@ export default function BatteryBanner({ style }) {
   if (!restricted) return null;
   return (
     <TouchableOpacity
-      style={[styles.banner, { backgroundColor: Colors.warning + '18', borderColor: Colors.warning + '40' }, style]}
+      style={[styles.banner, { backgroundColor: Colors.warning + '1A' }, style]}
       onPress={openBatterySettings}
       activeOpacity={0.8}
       accessibilityRole="button"
@@ -44,9 +44,9 @@ export default function BatteryBanner({ style }) {
 }
 
 const styles = StyleSheet.create({
-  banner: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, padding: Spacing.md, borderRadius: Radius.md, borderWidth: 1 },
+  banner: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, padding: Spacing.md, borderRadius: Radius.md },
   body:   { flex: 1, gap: 2 },
   title:  { fontSize: FontSize.sm, fontWeight: FontWeight.semibold },
   text:   { fontSize: FontSize.xs, lineHeight: 16 },
-  cta:    { fontSize: FontSize.sm, fontWeight: FontWeight.bold },
+  cta:    { fontSize: FontSize.sm, fontWeight: FontWeight.semibold },
 });

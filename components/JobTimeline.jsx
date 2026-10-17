@@ -30,7 +30,7 @@ export default function JobTimeline({ status }) {
                 backgroundColor: done ? color : active ? color + '22' : Colors.surface,
                 borderColor: color,
               }]}>
-                <Ionicons name={done ? 'checkmark' : step.icon} size={14} color={done ? '#FFF' : active ? color : Colors.subtleForeground} />
+                <Ionicons name={done ? 'checkmark' : step.icon} size={14} color={done ? Colors.onPrimary : active ? color : Colors.subtleForeground} />
               </View>
               <Text style={[styles.label, { color: active ? color : done ? Colors.foreground : Colors.subtleForeground }]}>
                 {step.label}

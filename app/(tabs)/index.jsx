@@ -22,7 +22,7 @@ import ActiveJobCard from '@components/ActiveJobCard';
 import OnlineToggle from '@components/OnlineToggle';
 import JobRequestModal from '@components/JobRequestModal';
 import { toast } from '@components/Toast';
-import Skeleton from '@components/Skeleton';
+import LoadingScreen from '@components/LoadingScreen';
 import EmptyState from '@components/EmptyState';
 import BatteryBanner from '@components/BatteryBanner';
 
@@ -145,30 +145,34 @@ export default function JobsScreen() {
   const rating = Number(profile?.avg_rating ?? 0);
   // Fees from cash jobs push the wallet below zero (paise → rupees); at the limit new jobs stop.
   const owed = Math.max(0, -fromPaise(profile?.wallet_balance ?? 0));
-  const showSkeleton = loading && jobs.length === 0;
+  const firstLoad = loading && jobs.length === 0;
   const loadFailed = !!error && jobs.length === 0;
 
   return (
     <SafeAreaView style={[styles.root, { backgroundColor: Colors.background }]} edges={['top']}>
+      {firstLoad ? <LoadingScreen overlay label="Loading jobs" /> : null}
       <View style={styles.header}>
-        <View style={{ flex: 1 }}>
+        <View style={styles.headerText}>
           <Text style={[styles.greeting, { color: Colors.mutedForeground }]}>{greeting()}</Text>
           <Text style={[styles.name, { color: Colors.foreground }]} numberOfLines={1}>{firstName}</Text>
         </View>
         <TouchableOpacity
           style={[styles.bell, { backgroundColor: Colors.surface, borderColor: Colors.border }]}
           onPress={() => router.push('/notifications')}
+          hitSlop={8}
+          accessibilityRole="button"
           accessibilityLabel={unread ? `Notifications, ${unread} unread` : 'Notifications'}
         >
           <Ionicons name="notifications-outline" size={20} color={Colors.mutedForeground} />
           {unread > 0 && (
             <View style={[styles.badge, { backgroundColor: Colors.error }]}>
-              <Text style={styles.badgeText}>{unread > 9 ? '9+' : unread}</Text>
+              <Text style={[styles.badgeText, { color: Colors.onPrimary }]}>{unread > 9 ? '9+' : unread}</Text>
             </View>
           )}
         </TouchableOpacity>
       </View>
 
+      {firstLoad ? null : (
       <ScrollView
         contentContainerStyle={styles.scroll}
         showsVerticalScrollIndicator={false}
@@ -178,7 +182,7 @@ export default function JobsScreen() {
 
         {!locationOk && (
           <TouchableOpacity
-            style={[styles.banner, { backgroundColor: Colors.warning + '18', borderColor: Colors.warning + '40' }]}
+            style={[styles.banner, { backgroundColor: Colors.warning + '1A' }]}
             onPress={() => router.push('/permissions')}
             activeOpacity={0.8}
             accessibilityRole="button"
@@ -196,7 +200,7 @@ export default function JobsScreen() {
 
         {owed > 0 && (
           <TouchableOpacity
-            style={[styles.banner, { backgroundColor: Colors.error + '14', borderColor: Colors.error + '40' }]}
+            style={[styles.banner, { backgroundColor: Colors.error + '1A' }]}
             onPress={() => router.push('/(tabs)/earnings')}
             activeOpacity={0.8}
             accessibilityRole="button"
@@ -213,7 +217,7 @@ export default function JobsScreen() {
           {[
             { label: 'Jobs today',   value: String(today.count) },
             { label: 'Earned today', value: formatINR(today.earned) },
-            { label: 'Rating',       value: rating ? `${rating.toFixed(1)}★` : '—' },
+            { label: 'Rating',       value: rating ? rating.toFixed(1) : '—' },
           ].map((s, i) => (
             <View key={s.label} style={[styles.todayItem, i > 0 && { borderLeftWidth: StyleSheet.hairlineWidth, borderLeftColor: Colors.border }]}>
               <Text style={[styles.todayValue, { color: Colors.foreground }]}>{s.value}</Text>
@@ -222,14 +226,12 @@ export default function JobsScreen() {
           ))}
         </View>
 
-        {showSkeleton ? (
-          <View style={styles.section}>{Array.from({ length: 3 }).map((_, i) => <Skeleton.BookingCard key={i} />)}</View>
-        ) : loadFailed ? (
+        {loadFailed ? (
           <EmptyState
             icon="cloud-offline-outline"
             title="Couldn't load your jobs"
             subtitle="Check your connection and try again."
-            cta={{ label: 'Retry', onPress: refresh }}
+            cta={{ label: 'Try again', onPress: refresh }}
           />
         ) : (
           <>
@@ -259,6 +261,7 @@ export default function JobsScreen() {
           </>
         )}
       </ScrollView>
+      )}
 
       <JobRequestModal
         visible={!!incomingJob}
@@ -275,19 +278,20 @@ export default function JobsScreen() {
 const styles = StyleSheet.create({
   root:         { flex: 1 },
   header:       { flexDirection: 'row', alignItems: 'center', paddingHorizontal: Spacing.base, paddingVertical: Spacing.md, gap: Spacing.md },
+  headerText:   { flex: 1 },
   greeting:     { fontSize: FontSize.sm },
   name:         { fontSize: FontSize.h1, fontWeight: FontWeight.bold },
-  bell:         { width: 42, height: 42, borderRadius: 21, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  bell:         { width: 40, height: 40, borderRadius: 20, borderWidth: StyleSheet.hairlineWidth, alignItems: 'center', justifyContent: 'center' },
   badge:        { position: 'absolute', top: -2, right: -2, minWidth: 18, height: 18, borderRadius: 9, paddingHorizontal: 4, alignItems: 'center', justifyContent: 'center' },
-  badgeText:    { color: '#FFF', fontSize: 10, fontWeight: FontWeight.bold },
-  scroll:       { paddingBottom: 120 },
-  banner:       { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginHorizontal: Spacing.base, marginTop: Spacing.sm, padding: Spacing.md, borderRadius: Radius.md, borderWidth: 1 },
+  badgeText:    { fontSize: 10, fontWeight: FontWeight.bold },
+  scroll:       { paddingBottom: Spacing.xl2 },
+  banner:       { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginHorizontal: Spacing.base, marginTop: Spacing.sm, padding: Spacing.md, borderRadius: Radius.md },
   bannerText:   { flex: 1, fontSize: FontSize.sm },
-  bannerCta:    { fontSize: FontSize.sm, fontWeight: FontWeight.bold },
+  bannerCta:    { fontSize: FontSize.sm, fontWeight: FontWeight.semibold },
   batteryBanner: { marginHorizontal: Spacing.base, marginTop: Spacing.sm },
   today:        { flexDirection: 'row', marginHorizontal: Spacing.base, marginTop: Spacing.md, borderRadius: Radius.lg, borderWidth: StyleSheet.hairlineWidth, paddingVertical: Spacing.md },
   todayItem:    { flex: 1, alignItems: 'center', gap: 2 },
-  todayValue:   { fontSize: FontSize.h3, fontWeight: FontWeight.bold },
+  todayValue:   { fontSize: FontSize.h3, fontWeight: FontWeight.semibold },
   todayLabel:   { fontSize: FontSize.xs },
   section:      { marginTop: Spacing.lg },
   sectionHead:  { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, paddingHorizontal: Spacing.base, marginBottom: Spacing.xs },

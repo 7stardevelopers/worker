@@ -5,13 +5,12 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { useTheme } from '@context/theme';
 import { useAuth } from '@context/auth';
-import { FontSize, FontWeight, Spacing, Radius, Shadow } from '@constants/theme';
+import { FontSize, FontWeight, Spacing, Radius } from '@constants/theme';
 import { api } from '@utils/api';
 import Notifications from '@utils/notifications';
 import { alertError, friendlyError } from '@utils/errors';
@@ -25,7 +24,10 @@ import { useCustomerCall } from '@utils/useCustomerCall';
 import StatusPill from '@components/StatusPill';
 import PaymentBadge from '@components/PaymentBadge';
 import OTPVerifySheet from '@components/OTPVerifySheet';
-import Skeleton from '@components/Skeleton';
+import ScreenHeader from '@components/ScreenHeader';
+import LoadingScreen from '@components/LoadingScreen';
+import FooterBar from '@components/FooterBar';
+import Button from '@components/Button';
 import EmptyState from '@components/EmptyState';
 import JobTimeline from '@components/JobTimeline';
 import RateCustomerCard from '@components/RateCustomerCard';
@@ -53,21 +55,21 @@ function openNavigation(address) {
 }
 
 const TRANSITION_ACTIONS = {
-  PENDING:     { label: 'Accept Job',       icon: 'checkmark-outline',        colorKey: 'success', isAccept: true },
-  ACCEPTED:    { next: 'EN_ROUTE',    label: "I'm on my way",   icon: 'navigate-outline',   colorKey: 'info' },
-  EN_ROUTE:    { next: 'IN_PROGRESS', label: 'Enter door code', icon: 'keypad-outline',     colorKey: 'secondary', needsDoorOtp: true },
-  IN_PROGRESS: { next: 'COMPLETED',   label: 'Mark as Complete', icon: 'checkmark-circle-outline', colorKey: 'success', needsProof: true },
+  PENDING:     { label: 'Accept job',         icon: 'checkmark-outline',        isAccept: true },
+  ACCEPTED:    { next: 'EN_ROUTE',    label: "I'm on my way",   icon: 'navigate-outline' },
+  EN_ROUTE:    { next: 'IN_PROGRESS', label: 'Enter door code', icon: 'keypad-outline',           needsDoorOtp: true },
+  IN_PROGRESS: { next: 'COMPLETED',   label: 'Complete job',    icon: 'checkmark-circle-outline', needsProof: true },
 };
 
 function QuickAction({ icon, label, onPress, Colors, loading }) {
   return (
-    <TouchableOpacity style={[styles.quick, { backgroundColor: Colors.primary + '12', borderColor: Colors.primary + '30' }]}
+    <TouchableOpacity style={[styles.quick, { backgroundColor: Colors.surfaceRaised, borderColor: Colors.border }]}
       onPress={onPress} disabled={loading} activeOpacity={0.8} accessibilityRole="button" accessibilityLabel={label}
       accessibilityState={{ busy: !!loading }}>
       {loading
-        ? <ActivityIndicator size="small" color={Colors.primary} />
-        : <Ionicons name={icon} size={18} color={Colors.primary} />}
-      <Text style={[styles.quickText, { color: Colors.primary }]}>{label}</Text>
+        ? <ActivityIndicator size="small" color={Colors.foreground} />
+        : <Ionicons name={icon} size={18} color={Colors.foreground} />}
+      <Text style={[styles.quickText, { color: Colors.foreground }]} numberOfLines={1}>{label}</Text>
     </TouchableOpacity>
   );
 }
@@ -205,6 +207,14 @@ export default function JobDetailScreen() {
   };
 
   const handlePickProof = async () => {
+    const perm = await ImagePicker.requestCameraPermissionsAsync();
+    if (!perm.granted) {
+      Alert.alert('Camera access needed', 'Allow camera access in Settings to take proof photos.', [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Open Settings', onPress: () => Linking.openSettings() },
+      ]);
+      return;
+    }
     const result = await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 1 });
     if (result.canceled) return;
     const { uri, width, height } = result.assets[0];
@@ -215,7 +225,7 @@ export default function JobDetailScreen() {
 
   const handleComplete = async () => {
     if (proofUris.length === 0) {
-      Alert.alert('Proof Required', 'Take at least 1 photo as proof of completion');
+      Alert.alert('Proof required', 'Take at least one photo of the finished work.');
       return;
     }
     setActionLoading(true);
@@ -283,7 +293,7 @@ export default function JobDetailScreen() {
   const waitingForCustomer = job?.status === 'IN_PROGRESS' && !!job?.providerDoneAt;
   const baseAction = waitingForCustomer ? null : TRANSITION_ACTIONS[job?.status];
   const action = baseAction && job?.status === 'IN_PROGRESS' && job?.customerDoneAt
-    ? { ...baseAction, label: 'Customer confirmed — Mark as Complete' }
+    ? { ...baseAction, label: 'Customer confirmed. Complete job' }
     : baseAction;
   const handleAction = () => {
     if (!action) return;
@@ -294,23 +304,19 @@ export default function JobDetailScreen() {
   };
 
   const header = (
-    <View style={styles.header}>
-      <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} accessibilityLabel="Back">
-        <Ionicons name="arrow-back" size={24} color={Colors.foreground} />
-      </TouchableOpacity>
-      <View style={{ flex: 1 }}>
-        <Text style={[styles.title, { color: Colors.foreground }]}>Job Details</Text>
-        <Text style={[styles.ref, { color: Colors.subtleForeground }]}>#{String(id).slice(0, 8).toUpperCase()}</Text>
-      </View>
-      {job && <StatusPill status={job.status} />}
-    </View>
+    <ScreenHeader
+      back
+      title="Job details"
+      subtitle={`#${String(id).slice(0, 8).toUpperCase()}`}
+      right={job ? <StatusPill status={job.status} /> : null}
+    />
   );
 
   if (loading && !job) {
     return (
       <SafeAreaView style={[styles.root, { backgroundColor: Colors.background }]} edges={['top']}>
+        <LoadingScreen overlay />
         {header}
-        {Array.from({ length: 4 }).map((_, i) => <Skeleton.BookingCard key={i} />)}
       </SafeAreaView>
     );
   }
@@ -319,6 +325,7 @@ export default function JobDetailScreen() {
     return (
       <SafeAreaView style={[styles.root, { backgroundColor: Colors.background }]} edges={['top']}>
         {header}
+        <View style={styles.center}>
         <EmptyState
           icon="alert-circle-outline"
           // A request opened from a push may already be taken or cancelled.
@@ -326,8 +333,9 @@ export default function JobDetailScreen() {
           subtitle={loadError?.status === 403 || loadError?.status === 404
             ? 'Another partner accepted it or the customer cancelled.'
             : friendlyError(loadError, 'Check your connection and try again.') ?? ''}
-          cta={{ label: 'Retry', onPress: () => { setLoading(true); fetchJob().finally(() => setLoading(false)); } }}
+          cta={{ label: 'Try again', onPress: () => { setLoading(true); fetchJob().finally(() => setLoading(false)); } }}
         />
+        </View>
       </SafeAreaView>
     );
   }
@@ -335,7 +343,6 @@ export default function JobDetailScreen() {
   const isAssigned = OPEN_STATUSES.includes(job.status) || job.status === 'COMPLETED';
   const isOpen = OPEN_STATUSES.includes(job.status);
   const canNavigate = (job.address.lat != null && job.address.lng != null) || job.address.fullAddress !== 'Address on file';
-  const actionColor = action ? (Colors[action.colorKey] ?? Colors.primary) : null;
 
   return (
     <SafeAreaView style={[styles.root, { backgroundColor: Colors.background }]} edges={['top']}>
@@ -350,29 +357,29 @@ export default function JobDetailScreen() {
         )}
 
         {/* Earning */}
-        <View style={[styles.heroCard, Shadow.lg]}>
-          <LinearGradient colors={Colors.gradientPrimary} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.heroGrad}>
-            <Text style={styles.heroLabel}>Your Earning</Text>
-            <Text style={styles.heroAmount}>{formatINR(job.providerEarning)}</Text>
-            <Text style={styles.heroTotal}>Job price: {formatINR(job.jobPrice ?? job.totalAmount)} • Platform fee: {formatINR(job.platformFee)}</Text>
-          </LinearGradient>
+        <View style={[styles.card, { backgroundColor: Colors.surface, borderColor: Colors.border }]}>
+          <Text style={[styles.cardTitle, { color: Colors.mutedForeground }]}>Your earning</Text>
+          <Text style={[styles.heroAmount, { color: Colors.foreground }]} numberOfLines={1} adjustsFontSizeToFit>
+            {formatINR(job.providerEarning)}
+          </Text>
+          <Text style={[styles.heroTotal, { color: Colors.mutedForeground }]}>
+            Job price {formatINR(job.jobPrice ?? job.totalAmount)} · Platform fee {formatINR(job.platformFee)}
+          </Text>
+          <PaymentBadge job={job} />
         </View>
 
         <JobTimeline status={job.status} />
 
-        <View style={styles.paymentRow}>
-          <PaymentBadge job={job} />
-        </View>
 
         {needsCashCollection(job) && (
-          <View style={[styles.banner, { backgroundColor: Colors.warning + '16', borderColor: Colors.warning + '50' }]}>
+          <View style={[styles.banner, { backgroundColor: Colors.warning + '1A' }]}>
             <Ionicons name="cash-outline" size={20} color={Colors.warning} />
-            <View style={{ flex: 1 }}>
+            <View style={styles.flex}>
               <Text style={[styles.bannerTitle, { color: Colors.foreground }]}>
                 Collect {formatINR(job.totalAmount)} from the customer
               </Text>
               <Text style={[styles.bannerSub, { color: Colors.mutedForeground }]}>
-                They chose to pay after the job — collect cash, unless they pay online in their app.
+                They chose to pay after the job. Collect cash unless they pay online in their app.
               </Text>
             </View>
           </View>
@@ -380,18 +387,18 @@ export default function JobDetailScreen() {
 
         {/* Service & items */}
         <View style={[styles.card, { backgroundColor: Colors.surface, borderColor: Colors.border }]}>
-          <Text style={[styles.cardTitle, { color: Colors.mutedForeground }]}>SERVICE</Text>
+          <Text style={[styles.cardTitle, { color: Colors.mutedForeground }]}>Service</Text>
           <Text style={[styles.serviceName, { color: Colors.foreground }]}>{job.service.name}</Text>
           <View style={styles.metaRow}>
             <Ionicons name="time-outline" size={14} color={Colors.mutedForeground} />
-            <Text style={[styles.metaText, { color: Colors.mutedForeground }]}>{job.isInstant ? `⚡ Instant · booked ${whenLabel(job.scheduledAt)}` : whenLabel(job.scheduledAt)} • ~{job.service.duration} min</Text>
+            <Text style={[styles.metaText, { color: Colors.mutedForeground }]}>{job.isInstant ? `Instant · booked ${whenLabel(job.scheduledAt)}` : whenLabel(job.scheduledAt)} · about {job.service.duration} min</Text>
           </View>
           {job.items.length > 0 && (
             <View style={[styles.items, { borderTopColor: Colors.border }]}>
               {job.items.map(item => (
                 <View key={item.id} style={styles.itemRow}>
-                  <View style={[styles.qty, { backgroundColor: Colors.primary + '18' }]}>
-                    <Text style={[styles.qtyText, { color: Colors.primary }]}>{item.quantity}×</Text>
+                  <View style={[styles.qty, { backgroundColor: Colors.surfaceRaised }]}>
+                    <Text style={[styles.qtyText, { color: Colors.foreground }]}>{item.quantity}×</Text>
                   </View>
                   <Text style={[styles.itemName, { color: Colors.foreground }]}>{item.name}</Text>
                   <Text style={[styles.itemPrice, { color: Colors.mutedForeground }]}>{formatINR(item.price * item.quantity)}</Text>
@@ -400,8 +407,8 @@ export default function JobDetailScreen() {
             </View>
           )}
           {job.customerNotes ? (
-            <View style={[styles.notes, { backgroundColor: Colors.info + '10', borderColor: Colors.info + '30' }]}>
-              <Ionicons name="chatbox-ellipses-outline" size={14} color={Colors.info} />
+            <View style={[styles.notes, { backgroundColor: Colors.surfaceRaised }]}>
+              <Ionicons name="chatbox-ellipses-outline" size={14} color={Colors.mutedForeground} />
               <Text style={[styles.notesText, { color: Colors.foreground }]}>{job.customerNotes}</Text>
             </View>
           ) : null}
@@ -409,21 +416,21 @@ export default function JobDetailScreen() {
 
         {/* Customer */}
         <View style={[styles.card, { backgroundColor: Colors.surface, borderColor: Colors.border }]}>
-          <Text style={[styles.cardTitle, { color: Colors.mutedForeground }]}>CUSTOMER</Text>
+          <Text style={[styles.cardTitle, { color: Colors.mutedForeground }]}>Customer</Text>
           <TouchableOpacity style={styles.customerRow} onPress={() => router.push(`/customer/${job.customerId}`)} disabled={!isAssigned}>
             {job.customerPhoto ? (
               <Image source={{ uri: job.customerPhoto }} style={styles.avatar} />
             ) : (
-              <View style={[styles.avatar, styles.avatarFallback, { backgroundColor: Colors.primary + '18' }]}>
-                <Ionicons name="person" size={18} color={Colors.primary} />
+              <View style={[styles.avatar, styles.avatarFallback, { backgroundColor: Colors.surfaceRaised }]}>
+                <Ionicons name="person" size={18} color={Colors.mutedForeground} />
               </View>
             )}
-            <Text style={[styles.customerName, { color: Colors.foreground }]}>{job.customerName}</Text>
+            <Text style={[styles.customerName, { color: Colors.foreground }]} numberOfLines={1}>{job.customerName}</Text>
             {isAssigned && <Ionicons name="chevron-forward" size={16} color={Colors.subtleForeground} />}
           </TouchableOpacity>
           {isOpen && (
             <View style={styles.quickRow}>
-              <QuickAction icon="call-outline" label={calling ? 'Calling…' : 'Call'} onPress={callCustomer} loading={calling} Colors={Colors} />
+              <QuickAction icon="call-outline" label={calling ? 'Calling' : 'Call'} onPress={callCustomer} loading={calling} Colors={Colors} />
               <QuickAction icon="chatbubble-ellipses-outline" label="Chat" onPress={() => router.push({ pathname: '/chat/[id]', params: { id, name: job.customerName } })} Colors={Colors} />
               {canNavigate && <QuickAction icon="navigate-outline" label="Navigate" onPress={() => openNavigation(job.address)} Colors={Colors} />}
             </View>
@@ -432,16 +439,16 @@ export default function JobDetailScreen() {
 
         {/* Address */}
         <View style={[styles.card, { backgroundColor: Colors.surface, borderColor: Colors.border }]}>
-          <Text style={[styles.cardTitle, { color: Colors.mutedForeground }]}>LOCATION</Text>
+          <Text style={[styles.cardTitle, { color: Colors.mutedForeground }]}>Location</Text>
           <View style={styles.metaRow}>
-            <Ionicons name="location-outline" size={14} color={Colors.primary} />
+            <Ionicons name="location-outline" size={14} color={Colors.mutedForeground} />
             <Text style={[styles.metaText, { color: Colors.foreground }]}>{job.address.fullAddress}</Text>
           </View>
           {showEta && eta && (
             <View style={styles.metaRow}>
               <Ionicons name="car-outline" size={14} color={Colors.mutedForeground} />
               <Text style={[styles.metaText, { color: Colors.mutedForeground }]}>
-                {eta.distance_km.toFixed(1)} km by road • ~{eta.duration_min} min
+                {eta.distance_km.toFixed(1)} km by road · about {eta.duration_min} min
               </Text>
             </View>
           )}
@@ -450,15 +457,15 @@ export default function JobDetailScreen() {
         {/* Two-sided completion status */}
         {job.status === 'IN_PROGRESS' && (job.disputedAt || waitingForCustomer || job.customerDoneAt) && (
           <View style={[styles.card, styles.doneCard, {
-            backgroundColor: (job.disputedAt ? Colors.error : waitingForCustomer ? Colors.warning : Colors.success) + '14',
-            borderColor:     (job.disputedAt ? Colors.error : waitingForCustomer ? Colors.warning : Colors.success) + '55',
+            backgroundColor: Colors.surface,
+            borderColor: (job.disputedAt ? Colors.error : waitingForCustomer ? Colors.warning : Colors.success) + '66',
           }]}>
             <Ionicons
               name={job.disputedAt ? 'alert-circle-outline' : waitingForCustomer ? 'hourglass-outline' : 'checkmark-done-outline'}
-              size={22}
+              size={20}
               color={job.disputedAt ? Colors.error : waitingForCustomer ? Colors.warning : Colors.success}
             />
-            <View style={{ flex: 1 }}>
+            <View style={styles.flex}>
               <Text style={[styles.doneTitle, { color: Colors.foreground }]}>
                 {job.disputedAt ? 'Customer reported a problem'
                   : waitingForCustomer ? 'Waiting for the customer to confirm'
@@ -466,8 +473,8 @@ export default function JobDetailScreen() {
               </Text>
               <Text style={[styles.doneSub, { color: Colors.mutedForeground }]}>
                 {job.disputedAt ? 'Support will contact you about this job.'
-                  : waitingForCustomer ? "The job completes when the customer taps \"Work done\" in their app. You're free to take your next job."
-                  : 'Add proof photos and tap Mark as Complete to finish.'}
+                  : waitingForCustomer ? "The job completes when the customer taps Work done in their app. You're free to take your next job."
+                  : 'Add proof photos and tap Complete job to finish.'}
               </Text>
             </View>
           </View>
@@ -476,32 +483,42 @@ export default function JobDetailScreen() {
         {/* Proof photos */}
         {job.status === 'IN_PROGRESS' && !waitingForCustomer && (
           <View style={[styles.card, { backgroundColor: Colors.surface, borderColor: Colors.border }]}>
-            <Text style={[styles.cardTitle, { color: Colors.mutedForeground }]}>PROOF PHOTOS</Text>
+            <Text style={[styles.cardTitle, { color: Colors.mutedForeground }]}>Proof photos</Text>
             <View style={styles.proofRow}>
               {proofUris.map((uri, i) => (
-                <TouchableOpacity key={uri} onLongPress={() => setProofUris(prev => prev.filter((_, j) => j !== i))}>
+                <TouchableOpacity
+                  key={uri}
+                  onPress={() => setProofUris(prev => prev.filter((_, j) => j !== i))}
+                  activeOpacity={0.8}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Remove photo ${i + 1}`}
+                >
                   <Image source={{ uri }} style={[styles.proofThumb, { borderColor: Colors.border }]} />
+                  <View style={[styles.proofRemove, { backgroundColor: Colors.backdrop }]}>
+                    <Ionicons name="close" size={14} color={Colors.onPrimary} />
+                  </View>
                 </TouchableOpacity>
               ))}
               {proofUris.length < 2 && (
                 <TouchableOpacity
-                  style={[styles.proofAdd, { backgroundColor: Colors.primary + '15', borderColor: Colors.primary + '40' }]}
+                  style={[styles.proofAdd, { backgroundColor: Colors.surfaceRaised, borderColor: Colors.border }]}
                   onPress={handlePickProof}
                   activeOpacity={0.8}
+                  accessibilityRole="button"
                   accessibilityLabel="Take proof photo"
                 >
-                  <Ionicons name="camera-outline" size={22} color={Colors.primary} />
+                  <Ionicons name="camera-outline" size={22} color={Colors.mutedForeground} />
                 </TouchableOpacity>
               )}
             </View>
             <Text style={[styles.proofHint, { color: Colors.mutedForeground }]}>
-              Take 1–2 photos of the completed work. Long-press a photo to remove it.
+              Take one or two photos of the finished work. Tap a photo to remove it.
             </Text>
           </View>
         )}
         {(job.status === 'COMPLETED' || waitingForCustomer) && job.proofPhotos.length > 0 && (
           <View style={[styles.card, { backgroundColor: Colors.surface, borderColor: Colors.border }]}>
-            <Text style={[styles.cardTitle, { color: Colors.mutedForeground }]}>PROOF PHOTOS</Text>
+            <Text style={[styles.cardTitle, { color: Colors.mutedForeground }]}>Proof photos</Text>
             <View style={styles.proofRow}>
               {job.proofPhotos.map(uri => <Image key={uri} source={{ uri }} style={[styles.proofThumb, { borderColor: Colors.border }]} />)}
             </View>
@@ -516,26 +533,16 @@ export default function JobDetailScreen() {
           <TouchableOpacity style={styles.helpRow} onPress={getHelp} disabled={helpLoading} activeOpacity={0.7}>
             <Ionicons name="help-buoy-outline" size={16} color={Colors.mutedForeground} />
             <Text style={[styles.helpText, { color: Colors.mutedForeground }]}>
-              {helpLoading ? 'Contacting support…' : 'Need help with this job? Contact support'}
+              {helpLoading ? 'Contacting support' : 'Need help with this job? Contact support'}
             </Text>
           </TouchableOpacity>
         )}
       </ScrollView>
 
       {action && (
-        <View style={[styles.actionBar, { backgroundColor: Colors.background, borderTopColor: Colors.border }]}>
-          <TouchableOpacity
-            style={[styles.actionBtn, { opacity: actionLoading ? 0.6 : 1 }]}
-            onPress={handleAction}
-            disabled={actionLoading}
-            activeOpacity={0.85}
-          >
-            <LinearGradient colors={[actionColor, actionColor + 'CC']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.actionGrad}>
-              <Ionicons name={action.icon} size={20} color="#FFF" />
-              <Text style={styles.actionText}>{actionLoading ? 'Please wait...' : action.label}</Text>
-            </LinearGradient>
-          </TouchableOpacity>
-        </View>
+        <FooterBar>
+          <Button title={action.label} icon={action.icon} onPress={handleAction} loading={actionLoading} />
+        </FooterBar>
       )}
 
       <OTPVerifySheet
@@ -552,43 +559,38 @@ export default function JobDetailScreen() {
 
 const styles = StyleSheet.create({
   root:          { flex: 1 },
-  scroll:        { paddingBottom: 130, gap: Spacing.md },
-  header:        { flexDirection: 'row', alignItems: 'center', padding: Spacing.base, gap: Spacing.md },
-  backBtn:       { width: 40, height: 40, justifyContent: 'center' },
-  title:         { fontSize: FontSize.h2, fontWeight: FontWeight.bold },
-  ref:           { fontSize: FontSize.xs, marginTop: 1 },
-  heroCard:      { marginHorizontal: Spacing.base, borderRadius: Radius.xl, overflow: 'hidden' },
-  heroGrad:      { padding: Spacing.xl, gap: 4 },
-  heroLabel:     { color: 'rgba(255,255,255,0.75)', fontSize: FontSize.sm },
-  heroAmount:    { color: '#FFF', fontSize: 44, fontWeight: FontWeight.bold, letterSpacing: -1 },
-  heroTotal:     { color: 'rgba(255,255,255,0.65)', fontSize: FontSize.xs },
-  paymentRow:    { marginHorizontal: Spacing.base },
+  flex:          { flex: 1 },
+  center:        { flex: 1, justifyContent: 'center' },
+  scroll:        { paddingTop: Spacing.xs, paddingBottom: Spacing.xl, gap: Spacing.md },
+  heroAmount:    { fontSize: FontSize.display + 4, fontWeight: FontWeight.bold, letterSpacing: -0.5 },
+  heroTotal:     { fontSize: FontSize.xs, marginBottom: Spacing.xs },
   batteryBanner: { marginHorizontal: Spacing.base },
-  banner:        { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, marginHorizontal: Spacing.base, padding: Spacing.md, borderRadius: Radius.lg, borderWidth: 1 },
+  banner:        { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, marginHorizontal: Spacing.base, padding: Spacing.md, borderRadius: Radius.lg },
   bannerTitle:   { fontSize: FontSize.body, fontWeight: FontWeight.semibold },
   bannerSub:     { fontSize: FontSize.xs, marginTop: 2 },
   card:          { marginHorizontal: Spacing.base, borderRadius: Radius.lg, borderWidth: StyleSheet.hairlineWidth, padding: Spacing.base, gap: Spacing.sm },
-  cardTitle:     { fontSize: FontSize.xs, fontWeight: FontWeight.bold, letterSpacing: 1 },
+  cardTitle:     { fontSize: FontSize.sm, fontWeight: FontWeight.medium },
   serviceName:   { fontSize: FontSize.h3, fontWeight: FontWeight.semibold },
   metaRow:       { flexDirection: 'row', alignItems: 'flex-start', gap: 6 },
   metaText:      { flex: 1, fontSize: FontSize.sm },
   items:         { borderTopWidth: StyleSheet.hairlineWidth, paddingTop: Spacing.sm, gap: Spacing.sm },
   itemRow:       { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
   qty:           { minWidth: 32, borderRadius: Radius.sm, paddingHorizontal: 6, paddingVertical: 2, alignItems: 'center' },
-  qtyText:       { fontSize: FontSize.xs, fontWeight: FontWeight.bold },
+  qtyText:       { fontSize: FontSize.xs, fontWeight: FontWeight.semibold },
   itemName:      { flex: 1, fontSize: FontSize.sm },
   itemPrice:     { fontSize: FontSize.sm },
-  notes:         { flexDirection: 'row', gap: Spacing.sm, padding: Spacing.md, borderRadius: Radius.md, borderWidth: 1 },
+  notes:         { flexDirection: 'row', gap: Spacing.sm, padding: Spacing.md, borderRadius: Radius.md },
   notesText:     { flex: 1, fontSize: FontSize.sm, lineHeight: 20 },
   customerRow:   { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
   avatar:        { width: 40, height: 40, borderRadius: 20 },
   avatarFallback:{ alignItems: 'center', justifyContent: 'center' },
   customerName:  { flex: 1, fontSize: FontSize.body, fontWeight: FontWeight.semibold },
   quickRow:      { flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.xs },
-  quick:         { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, height: 44, borderRadius: Radius.md, borderWidth: 1 },
+  quick:         { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, height: 44, paddingHorizontal: Spacing.sm, borderRadius: Radius.md, borderWidth: StyleSheet.hairlineWidth },
   quickText:     { fontSize: FontSize.sm, fontWeight: FontWeight.semibold },
   proofRow:      { flexDirection: 'row', gap: Spacing.sm, flexWrap: 'wrap' },
-  proofThumb:    { width: 80, height: 80, borderRadius: Radius.md, borderWidth: 1 },
+  proofThumb:    { width: 80, height: 80, borderRadius: Radius.md, borderWidth: StyleSheet.hairlineWidth },
+  proofRemove:   { position: 'absolute', top: 4, right: 4, width: 22, height: 22, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
   proofAdd:      { width: 80, height: 80, borderRadius: Radius.md, borderWidth: 1, borderStyle: 'dashed', justifyContent: 'center', alignItems: 'center' },
   proofHint:     { fontSize: FontSize.xs },
   doneCard:      { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.md },
@@ -596,8 +598,4 @@ const styles = StyleSheet.create({
   doneSub:       { fontSize: FontSize.sm, marginTop: 2, lineHeight: 18 },
   helpRow:       { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: Spacing.md },
   helpText:      { fontSize: FontSize.sm, fontWeight: FontWeight.medium },
-  actionBar:     { position: 'absolute', bottom: 0, left: 0, right: 0, padding: Spacing.base, paddingBottom: 36, borderTopWidth: StyleSheet.hairlineWidth },
-  actionBtn:     { borderRadius: Radius.lg, overflow: 'hidden', height: 56 },
-  actionGrad:    { flex: 1, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: Spacing.sm },
-  actionText:    { color: '#FFF', fontSize: FontSize.body, fontWeight: FontWeight.bold },
 });

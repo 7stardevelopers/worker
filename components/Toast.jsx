@@ -69,7 +69,7 @@ export default function ToastHost() {
       <TouchableOpacity
         activeOpacity={0.9}
         onPress={() => { hide(); current.onPress?.(); }}
-        style={[styles.card, Shadow.lg, { backgroundColor: Colors.surface, borderColor: accent + '55' }]}
+        style={[styles.card, Shadow.md, { backgroundColor: Colors.surfaceRaised, borderColor: Colors.border }]}
         accessibilityRole="alert"
         accessibilityLabel={[current.title, current.message].filter(Boolean).join('. ')}
       >
@@ -88,7 +88,7 @@ export default function ToastHost() {
 
 const styles = StyleSheet.create({
   wrap:     { position: 'absolute', left: Spacing.base, right: Spacing.base, zIndex: 1000, elevation: 1000 },
-  card:     { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, padding: Spacing.md, borderRadius: Radius.lg, borderWidth: 1 },
+  card:     { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, padding: Spacing.md, borderRadius: Radius.lg, borderWidth: StyleSheet.hairlineWidth },
   iconWrap: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
   texts:    { flex: 1, gap: 2 },
   title:    { fontSize: FontSize.body, fontWeight: FontWeight.semibold },

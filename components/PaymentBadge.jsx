@@ -12,16 +12,16 @@ export default function PaymentBadge({ job, small = false }) {
   if (!info) return null;
   const color = Colors[info.colorKey] ?? Colors.primary;
   return (
-    <View style={[styles.pill, { backgroundColor: color + '20', borderColor: color + '50' }, small && styles.small]}>
+    <View style={[styles.pill, { backgroundColor: color + '1F' }, small && styles.small]}>
       <Ionicons name={info.icon} size={small ? 11 : 13} color={color} />
-      <Text style={[styles.label, { color }, small && styles.labelSmall]}>{info.label}</Text>
+      <Text style={[styles.label, { color }, small && styles.labelSmall]} numberOfLines={1}>{info.label}</Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  pill:       { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 4, borderRadius: Radius.full, borderWidth: 1, paddingHorizontal: Spacing.sm, paddingVertical: 4 },
-  small:      { paddingHorizontal: 6, paddingVertical: 3 },
-  label:      { fontSize: FontSize.sm, fontWeight: FontWeight.semibold },
+  pill:       { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 4, borderRadius: Radius.full, paddingHorizontal: Spacing.sm, paddingVertical: 4 },
+  small:      { paddingHorizontal: 8, paddingVertical: 3 },
+  label:      { fontSize: FontSize.sm, fontWeight: FontWeight.medium },
   labelSmall: { fontSize: FontSize.xs },
 });

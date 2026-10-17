@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
-import { View, Text, ActivityIndicator, TouchableOpacity, StyleSheet } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { View, StyleSheet } from 'react-native';
 import { router } from 'expo-router';
 import { useAuth } from '@context/auth';
 import { useProvider } from '@context/provider';
 import { useTheme } from '@context/theme';
 import { routeForProvider } from '@utils/onboarding';
-import { FontSize, FontWeight, Spacing, Radius } from '@constants/theme';
 import { APP_NAME } from '@constants/brand';
+import LoadingScreen from '@components/LoadingScreen';
+import EmptyState from '@components/EmptyState';
 
 export default function Index() {
   const { Colors } = useTheme();
@@ -32,34 +32,20 @@ export default function Index() {
     route();
   }, [authLoading, token]);
 
+  if (!failed) return <LoadingScreen brand />;
+
   return (
     <View style={[styles.root, { backgroundColor: Colors.background }]}>
-      {failed ? (
-        <>
-          <Ionicons name="cloud-offline-outline" size={48} color={Colors.mutedForeground} />
-          <Text style={[styles.title, { color: Colors.foreground }]}>Can't reach {APP_NAME}</Text>
-          <Text style={[styles.body, { color: Colors.mutedForeground }]}>
-            Check your internet connection and try again.
-          </Text>
-          <TouchableOpacity
-            onPress={route}
-            style={[styles.retry, { backgroundColor: Colors.primary }]}
-            activeOpacity={0.85}
-          >
-            <Text style={styles.retryText}>Retry</Text>
-          </TouchableOpacity>
-        </>
-      ) : (
-        <ActivityIndicator color={Colors.primary} size="large" />
-      )}
+      <EmptyState
+        icon="cloud-offline-outline"
+        title={`Can't reach ${APP_NAME}`}
+        subtitle="Check your internet connection and try again."
+        cta={{ label: 'Try again', onPress: route }}
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  root:      { flex: 1, justifyContent: 'center', alignItems: 'center', gap: Spacing.md, padding: Spacing.xl },
-  title:     { fontSize: FontSize.h3, fontWeight: FontWeight.semibold },
-  body:      { fontSize: FontSize.sm, textAlign: 'center' },
-  retry:     { marginTop: Spacing.sm, paddingHorizontal: Spacing.xl, paddingVertical: Spacing.md, borderRadius: Radius.md },
-  retryText: { color: '#FFF', fontWeight: FontWeight.semibold },
+  root: { flex: 1, justifyContent: 'center' },
 });
