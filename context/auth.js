@@ -113,12 +113,21 @@ export function AuthProvider({ children }) {
     signOutOnServer(accessToken, refreshToken, pushToken);
   }, [clearLocal]);
 
+<<<<<<< HEAD
+  const logout = async () => {
+    await AsyncStorage.multiRemove([ACCESS_TOKEN_KEY, REFRESH_TOKEN_KEY, USER_KEY]);
+    setToken(null);
+    setUser(null);
+    router.replace('/(auth)/login');
+  };
+=======
   const updateUser = useCallback(async (updates) => {
     const next = userRef.current ? { ...userRef.current, ...updates } : updates;
     userRef.current = next;
     setUser(next);
     await AsyncStorage.setItem(TOKEN_KEYS.user, JSON.stringify(next));
   }, []);
+>>>>>>> e26961c635b60a007766324f445890a2e88d7232
 
   const value = useMemo(
     () => ({ user, token, loading, login, logout, updateUser }),

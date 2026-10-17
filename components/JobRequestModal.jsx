@@ -1,12 +1,18 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, Modal, TouchableOpacity, StyleSheet, Animated } from 'react-native';
+import { View, Text, Animated, Easing, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '@context/theme';
+<<<<<<< HEAD
+import { FontSize, FontWeight, Spacing, Radius } from '@constants/theme';
+import { formatINR } from '@utils/format';
+import BottomSheet from '@components/BottomSheet';
+import Button from '@components/Button';
+=======
 import { FontSize, FontWeight, Spacing, Radius, Shadow } from '@constants/theme';
 import { formatINR } from '@utils/money';
-import { whenLabel } from '@utils/jobs';
+import { jobWhenLabel } from '@utils/jobs';
 import PaymentBadge from '@components/PaymentBadge';
+>>>>>>> e26961c635b60a007766324f445890a2e88d7232
 
 const COUNTDOWN = 30;
 
@@ -15,10 +21,28 @@ export default function JobRequestModal({ visible, job, onAccept, onReject, onEx
   expireRef.current = onExpire ?? onReject;
   const { Colors } = useTheme();
   const [timer, setTimer] = useState(COUNTDOWN);
-  const slideY = useRef(new Animated.Value(300)).current;
+  const [busy,  setBusy]  = useState(false);
   const progress = useRef(new Animated.Value(1)).current;
 
+  // Keep the last job around so the sheet still has content while it
+  // animates closed after the parent clears `job`.
+  const lastJob = useRef(job);
+  if (job) lastJob.current = job;
+  const current = job ?? lastJob.current;
+
   useEffect(() => {
+<<<<<<< HEAD
+    if (!visible) return undefined;
+    setBusy(false);
+    progress.setValue(1);
+    const anim = Animated.timing(progress, {
+      toValue: 0, duration: COUNTDOWN * 1000, easing: Easing.linear, useNativeDriver: true,
+    });
+    anim.start();
+    const iv = setInterval(() => setTimer(t => Math.max(t - 1, 0)), 1000);
+    // Reset on close so the next request never opens with an expired timer.
+    return () => { clearInterval(iv); anim.stop(); setTimer(COUNTDOWN); };
+=======
     if (!visible) {
       slideY.setValue(300);
       progress.setValue(1);
@@ -38,14 +62,34 @@ export default function JobRequestModal({ visible, job, onAccept, onReject, onEx
     }, 1000);
 
     return () => clearInterval(iv);
+>>>>>>> e26961c635b60a007766324f445890a2e88d7232
   }, [visible]);
 
-  if (!job) return null;
+  useEffect(() => {
+    if (visible && timer === 0 && !busy) onReject?.();
+  }, [timer, visible, busy]);
 
-  const earning = job.providerEarning ?? job.totalAmount ?? 0;
-  const progressWidth = progress.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] });
+  const handleAccept = async () => {
+    setBusy(true);
+    try {
+      await onAccept?.();
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (!current) return null;
+
+  const earning = current.providerEarning ?? current.totalAmount ?? 0;
 
   return (
+<<<<<<< HEAD
+    <BottomSheet visible={visible} onClose={onReject} dismissible={!busy}>
+      <View style={[styles.timerTrack, { backgroundColor: Colors.borderLight }]}>
+        <Animated.View
+          style={[styles.timerFill, { backgroundColor: Colors.warning, transform: [{ scaleX: progress }] }]}
+        />
+=======
     <Modal visible={visible} transparent animationType="none">
       <View style={styles.overlay}>
         <Animated.View style={[styles.sheet, { backgroundColor: Colors.surface, transform: [{ translateY: slideY }] }, Shadow.lg]}>
@@ -60,7 +104,12 @@ export default function JobRequestModal({ visible, job, onAccept, onReject, onEx
             <View style={[styles.alertIcon, { backgroundColor: Colors.warning + '20' }]}>
               <Ionicons name="flash" size={28} color={Colors.warning} />
             </View>
-            <Text style={[styles.title, { color: Colors.foreground }]}>New Job Request!</Text>
+            <Text style={[styles.title, { color: Colors.foreground }]}>{job.isInstant ? '⚡ Instant Job — Now!' : 'New Job Request!'}</Text>
+            {job.isInstant && (
+              <Text style={[styles.instantSub, { color: Colors.mutedForeground }]}>
+                A customer nearby needs an expert right away. Accept only if you can leave now.
+              </Text>
+            )}
             <Text style={[styles.countdown, { color: Colors.warning }]}>Expires in {timer}s</Text>
           </View>
 
@@ -78,7 +127,7 @@ export default function JobRequestModal({ visible, job, onAccept, onReject, onEx
               <View style={styles.metaRow}>
                 <Ionicons name="calendar-outline" size={14} color={Colors.primary} />
                 <Text style={[styles.metaText, styles.whenText, { color: Colors.foreground }]}>
-                  {whenLabel(job.scheduledAt)}
+                  {jobWhenLabel(job)}
                 </Text>
               </View>
               <View style={styles.metaRow}>
@@ -111,33 +160,65 @@ export default function JobRequestModal({ visible, job, onAccept, onReject, onEx
             </TouchableOpacity>
           </View>
         </Animated.View>
+>>>>>>> e26961c635b60a007766324f445890a2e88d7232
       </View>
-    </Modal>
+
+      <View style={styles.header}>
+        <Text style={[styles.title, { color: Colors.foreground }]}>New job request</Text>
+        <Text style={[styles.countdown, { color: Colors.warning }]}>{timer}s</Text>
+      </View>
+
+      <View style={[styles.card, { backgroundColor: Colors.surfaceRaised }]}>
+        <Text style={[styles.jobName, { color: Colors.foreground }]} numberOfLines={2}>
+          {current.service?.name ?? 'Service'}
+        </Text>
+        <View style={styles.metaRow}>
+          <Ionicons name="location-outline" size={14} color={Colors.mutedForeground} />
+          <Text style={[styles.metaText, { color: Colors.mutedForeground }]} numberOfLines={2}>
+            {current.address?.fullAddress ?? 'Address on file'}
+          </Text>
+        </View>
+        <View style={styles.metaRow}>
+          <Ionicons name="time-outline" size={14} color={Colors.mutedForeground} />
+          <Text style={[styles.metaText, { color: Colors.mutedForeground }]}>
+            {current.service?.duration ?? 60} min
+          </Text>
+        </View>
+        <View style={[styles.earningRow, { borderTopColor: Colors.border }]}>
+          <Text style={[styles.earningLabel, { color: Colors.mutedForeground }]}>You earn</Text>
+          <Text style={[styles.earningAmount, { color: Colors.success }]}>{formatINR(earning)}</Text>
+        </View>
+      </View>
+
+      <View style={styles.actions}>
+        <Button title="Decline" variant="secondary" onPress={onReject} disabled={busy} style={styles.decline} />
+        <Button title="Accept" onPress={handleAccept} loading={busy} style={styles.accept} />
+      </View>
+    </BottomSheet>
   );
 }
 
 const styles = StyleSheet.create({
-  overlay:       { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' },
-  sheet:         { borderTopLeftRadius: Radius.xl2, borderTopRightRadius: Radius.xl2, padding: Spacing.base, paddingBottom: 36, gap: Spacing.base, overflow: 'hidden' },
-  timerTrack:    { height: 4, borderRadius: 2, overflow: 'hidden', marginBottom: Spacing.sm },
-  timerFill:     { height: '100%', borderRadius: 2 },
-  header:        { alignItems: 'center', gap: Spacing.sm },
-  alertIcon:     { width: 64, height: 64, borderRadius: 32, justifyContent: 'center', alignItems: 'center' },
+  timerTrack:    { height: 3, borderRadius: 2, overflow: 'hidden' },
+  timerFill:     { height: '100%', width: '100%', transformOrigin: 'left' },
+  header:        { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   title:         { fontSize: FontSize.h2, fontWeight: FontWeight.bold },
-  countdown:     { fontSize: FontSize.body, fontWeight: FontWeight.semibold },
-  jobCard:       { borderRadius: Radius.lg, borderWidth: StyleSheet.hairlineWidth, padding: Spacing.base, gap: Spacing.sm },
-  jobName:       { fontSize: FontSize.h3, fontWeight: FontWeight.semibold },
-  jobMeta:       { gap: 6 },
+  countdown:     { fontSize: FontSize.body, fontWeight: FontWeight.semibold, fontVariant: ['tabular-nums'] },
+  card:          { borderRadius: Radius.lg, padding: Spacing.base, gap: Spacing.sm },
+  jobName:       { fontSize: FontSize.h3, fontWeight: FontWeight.semibold, marginBottom: 2 },
   metaRow:       { flexDirection: 'row', alignItems: 'flex-start', gap: 6 },
+<<<<<<< HEAD
+  metaText:      { flex: 1, fontSize: FontSize.sm, lineHeight: 18 },
+  earningRow:    { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderTopWidth: StyleSheet.hairlineWidth, paddingTop: Spacing.md, marginTop: Spacing.xs },
+=======
   metaText:      { fontSize: FontSize.sm, flex: 1 },
   whenText:      { fontWeight: FontWeight.semibold },
+  instantSub:    { fontSize: FontSize.sm, textAlign: 'center', marginTop: 2 },
   earningBadge:  { borderRadius: Radius.md, borderWidth: 1, padding: Spacing.md, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: Spacing.sm },
+>>>>>>> e26961c635b60a007766324f445890a2e88d7232
   earningLabel:  { fontSize: FontSize.sm },
   earningAmount: { fontSize: FontSize.h2, fontWeight: FontWeight.bold },
   actions:       { flexDirection: 'row', gap: Spacing.sm },
-  rejectBtn:     { width: 100, height: 54, borderRadius: Radius.lg, borderWidth: 1.5, justifyContent: 'center', alignItems: 'center', flexDirection: 'row', gap: 6 },
-  rejectText:    { fontSize: FontSize.body, fontWeight: FontWeight.semibold },
-  acceptBtn:     { borderRadius: Radius.lg, overflow: 'hidden', height: 54 },
-  acceptGrad:    { flex: 1, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8 },
-  acceptText:    { color: '#FFF', fontSize: FontSize.body, fontWeight: FontWeight.bold },
+  decline:       { flex: 1 },
+  accept:        { flex: 2 },
 });

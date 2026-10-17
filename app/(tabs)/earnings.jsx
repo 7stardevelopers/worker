@@ -1,21 +1,38 @@
 import React, { useState, useCallback } from 'react';
 import {
-  View, Text, FlatList, TouchableOpacity, StyleSheet, Alert, RefreshControl,
+  View, Text, FlatList, StyleSheet, Alert, RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect } from 'expo-router';
 import { useTheme } from '@context/theme';
 import { useAuth } from '@context/auth';
 import { useProvider } from '@context/provider';
+<<<<<<< HEAD
+import { FontSize, FontWeight, Spacing, Radius } from '@constants/theme';
+=======
 import { FontSize, FontWeight, Spacing, Radius, Shadow } from '@constants/theme';
 import { alertError } from '@utils/errors';
 import { formatINR, fromPaise, toPaise, MIN_PAYOUT } from '@utils/money';
+>>>>>>> e26961c635b60a007766324f445890a2e88d7232
 import { api } from '@utils/api';
 import { normalizeEarning } from '@utils/normalize';
+import { formatINR } from '@utils/format';
+import ScreenHeader from '@components/ScreenHeader';
 import EarningsChart from '@components/EarningsChart';
 import EmptyState from '@components/EmptyState';
+<<<<<<< HEAD
+import LoadingScreen from '@components/LoadingScreen';
+import Button from '@components/Button';
+
+const MIN_PAYOUT = 10000; // paise
+
+const TYPE_ICON = {
+  BOOKING:   'briefcase-outline',
+  TIP:       'gift-outline',
+  BONUS:     'ribbon-outline',
+  DEDUCTION: 'remove-circle-outline',
+=======
 import Skeleton from '@components/Skeleton';
 import RazorpayCheckoutModal from '@components/RazorpayCheckoutModal';
 import { toast } from '@components/Toast';
@@ -31,10 +48,13 @@ const TYPE_CONFIG = {
   CASH_FEE:          { label: 'Platform fee (cash job)', icon: 'cash-outline',          color: '#EF4444', sign: '-' },
   PROMO_REVERSAL:    { label: 'Discount credit undone',  icon: 'pricetag-outline',      color: '#EF4444', sign: '-' },
   DEDUCTION:         { label: 'Deduction',               icon: 'remove-circle-outline', color: '#EF4444', sign: '-' },
+>>>>>>> e26961c635b60a007766324f445890a2e88d7232
 };
 // Money taken off the wallet, and money that isn't income (paying dues) — kept out of the earnings totals.
 const DEBIT_TYPES = ['DEDUCTION', 'CASH_FEE', 'PROMO_REVERSAL'];
 const NOT_INCOME  = [...DEBIT_TYPES, 'DUES_PAID'];
+
+const startOfDay = d => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
 
 export default function EarningsScreen() {
   const { Colors } = useTheme();
@@ -60,11 +80,12 @@ export default function EarningsScreen() {
   const walletBalance = fromPaise(profile?.wallet_balance);
   const withdrawable  = availableBalance ?? walletBalance;
   const bankLast4     = (profile?.bank_account_number ?? '').slice(-4);
+  const canPayout     = walletBalance >= MIN_PAYOUT;
 
   const load = useCallback(async () => {
     if (!token) return;
     try {
-      const [profileRes, earningsRes] = await Promise.all([
+      const [, earningsRes] = await Promise.all([
         fetchProfile(),
         api.get('/providers/me/earnings', token),
       ]);
@@ -78,13 +99,19 @@ export default function EarningsScreen() {
       setJobsBlocked(!!stats.jobs_blocked);
       setNextPayout(stats.next_payout_date ?? null);
 
-      // build 7-day chart data
-      const today = new Date();
+      // 7 calendar-day buckets, oldest first, last bucket = today
+      const today = startOfDay(new Date());
       const buckets = Array(7).fill(0);
+<<<<<<< HEAD
+      raw.forEach(e => {
+        if (e.type === 'DEDUCTION' || !e.created_at) return;
+        const dayDiff = Math.round((today - startOfDay(new Date(e.created_at))) / 86400000);
+=======
       items.forEach(e => {
         if (NOT_INCOME.includes(e.type)) return;
         const d = new Date(e.createdAt);
         const dayDiff = Math.floor((today - d) / 86400000);
+>>>>>>> e26961c635b60a007766324f445890a2e88d7232
         const slot = 6 - dayDiff;
         if (slot >= 0 && slot < 7) buckets[slot] += e.amount ?? 0;
       });
@@ -96,7 +123,6 @@ export default function EarningsScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      setLoading(true);
       load().finally(() => setLoading(false));
     }, [load])
   );
@@ -108,6 +134,11 @@ export default function EarningsScreen() {
   }, [load]);
 
   const handlePayoutRequest = () => {
+<<<<<<< HEAD
+    Alert.alert(
+      'Request payout',
+      `Transfer ${formatINR(walletBalance, { decimals: true })} to account ending ${bankLast4 || '----'}?`,
+=======
     // The worker withdraws the full available amount (rupees); never more than the wallet holds.
     const amount = Math.min(withdrawable, walletBalance);
     if (amount < MIN_PAYOUT) {
@@ -121,18 +152,24 @@ export default function EarningsScreen() {
     Alert.alert(
       'Request Payout',
       `Request payout of ${formatINR(amount)} to account ****${bankLast4}?`,
+>>>>>>> e26961c635b60a007766324f445890a2e88d7232
       [
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Confirm',
-          style: 'default',
           onPress: async () => {
             setRequesting(true);
             try {
+<<<<<<< HEAD
+              await api.post('/payments/payout-request', { amount: walletBalance }, token);
+              Alert.alert('Payout requested', 'Your payout will be processed within 2-3 business days.');
+              await fetchProfile();
+=======
               // The backend takes paise.
               await api.post('/payments/payout-request', { amount: toPaise(amount) }, token);
               toast.success('Payout requested', 'It will be processed within 2-3 business days.');
               await load();
+>>>>>>> e26961c635b60a007766324f445890a2e88d7232
             } catch (e) {
               alertError('Payout failed', e);
             } finally {
@@ -144,6 +181,20 @@ export default function EarningsScreen() {
     );
   };
 
+<<<<<<< HEAD
+  const now = new Date();
+  const credits = earnings.filter(e => e.type !== 'DEDUCTION');
+  const thisWeek = credits
+    .filter(e => (now.getTime() - new Date(e.createdAt).getTime()) < 7 * 86400000)
+    .reduce((s, e) => s + e.amount, 0);
+  const thisMonth = credits
+    .filter(e => {
+      const d = new Date(e.createdAt);
+      return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+    })
+    .reduce((s, e) => s + e.amount, 0);
+  const total = credits.reduce((s, e) => s + e.amount, 0);
+=======
   const startPayDues = async () => {
     setPayingDues(true);
     try {
@@ -186,20 +237,28 @@ export default function EarningsScreen() {
   }).reduce((s, e) => s + e.amount, 0);
 
   const total = earnings.filter(e => !NOT_INCOME.includes(e.type)).reduce((s, e) => s + e.amount, 0);
+>>>>>>> e26961c635b60a007766324f445890a2e88d7232
 
   return (
     <SafeAreaView style={[styles.root, { backgroundColor: Colors.background }]} edges={['top']}>
-      <FlatList
-        data={loading ? [] : earnings}
-        keyExtractor={item => item.id}
-        contentContainerStyle={styles.list}
-        showsVerticalScrollIndicator={false}
-        ListHeaderComponent={
-          <>
-            <View style={styles.header}>
-              <Text style={[styles.title, { color: Colors.foreground }]}>Earnings</Text>
-            </View>
+      <ScreenHeader large title="Earnings" />
 
+<<<<<<< HEAD
+      {loading ? (
+        <LoadingScreen overlay />
+      ) : (
+        <FlatList
+          data={earnings}
+          keyExtractor={item => String(item.id)}
+          contentContainerStyle={styles.list}
+          showsVerticalScrollIndicator={false}
+          ListHeaderComponent={
+            <View style={styles.listHeader}>
+              <View style={[styles.wallet, { backgroundColor: Colors.surface, borderColor: Colors.border }]}>
+                <Text style={[styles.walletLabel, { color: Colors.mutedForeground }]}>Wallet balance</Text>
+                <Text style={[styles.walletAmount, { color: Colors.foreground }]} numberOfLines={1} adjustsFontSizeToFit>
+                  {formatINR(walletBalance, { decimals: true })}
+=======
             {/* Wallet Card */}
             <View style={[styles.walletCard, Shadow.lg]}>
               <LinearGradient colors={['#6366F1', '#8B5CF6']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.walletGrad}>
@@ -281,9 +340,79 @@ export default function EarningsScreen() {
               <View style={styles.rowInfo}>
                 <Text style={[styles.rowTitle, { color: Colors.foreground }]}>
                   {cfg.label ?? item.type}
+>>>>>>> e26961c635b60a007766324f445890a2e88d7232
                 </Text>
-                <Text style={[styles.rowTime, { color: Colors.mutedForeground }]}>{item.timeAgo}</Text>
+                <Button
+                  title="Request payout"
+                  onPress={handlePayoutRequest}
+                  disabled={!canPayout}
+                  loading={requesting}
+                  style={styles.payoutBtn}
+                />
+                {!canPayout ? (
+                  <Text style={[styles.walletHint, { color: Colors.subtleForeground }]}>
+                    Minimum payout is {formatINR(MIN_PAYOUT)}
+                  </Text>
+                ) : null}
               </View>
+<<<<<<< HEAD
+
+              <View style={styles.summaryRow}>
+                {[
+                  { label: 'This week',  value: thisWeek  },
+                  { label: 'This month', value: thisMonth },
+                  { label: 'All time',   value: total     },
+                ].map(s => (
+                  <View key={s.label} style={[styles.summaryCard, { backgroundColor: Colors.surface, borderColor: Colors.border }]}>
+                    <Text style={[styles.summaryLabel, { color: Colors.mutedForeground }]} numberOfLines={1}>{s.label}</Text>
+                    <Text style={[styles.summaryValue, { color: Colors.foreground }]} numberOfLines={1} adjustsFontSizeToFit>
+                      {formatINR(s.value)}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+
+              <EarningsChart data={chartData} />
+
+              <Text style={[styles.sectionTitle, { color: Colors.foreground }]}>Transactions</Text>
+            </View>
+          }
+          ListEmptyComponent={
+            <EmptyState icon="wallet-outline" title="No earnings yet" subtitle="Completed jobs will appear here." compact />
+          }
+          renderItem={({ item, index }) => {
+            const isDeduction = item.type === 'DEDUCTION';
+            const isFirst = index === 0;
+            const isLast  = index === earnings.length - 1;
+            return (
+              <View
+                style={[
+                  styles.row,
+                  { backgroundColor: Colors.surface, borderColor: Colors.border },
+                  isFirst && styles.rowFirst,
+                  isLast && styles.rowLast,
+                  !isLast && { borderBottomColor: Colors.borderLight },
+                ]}
+              >
+                <Ionicons name={TYPE_ICON[item.type] ?? TYPE_ICON.BOOKING} size={18} color={Colors.mutedForeground} />
+                <View style={styles.rowInfo}>
+                  <Text style={[styles.rowTitle, { color: Colors.foreground }]}>
+                    {item.type.charAt(0) + item.type.slice(1).toLowerCase()}
+                  </Text>
+                  <Text style={[styles.rowTime, { color: Colors.mutedForeground }]}>{item.timeAgo}</Text>
+                </View>
+                <Text style={[styles.rowAmount, { color: isDeduction ? Colors.error : Colors.success }]}>
+                  {isDeduction ? '-' : '+'}{formatINR(item.amount)}
+                </Text>
+              </View>
+            );
+          }}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} colors={[Colors.primary]} />
+          }
+        />
+      )}
+=======
               <Text style={[styles.rowAmount, { color: DEBIT_TYPES.includes(item.type) ? Colors.error : Colors.success }]}>
                 {cfg.sign}{formatINR(item.amount)}
               </Text>
@@ -302,12 +431,24 @@ export default function EarningsScreen() {
         onSuccess={handleDuesPaid}
         onDismiss={() => setDuesOrder(null)}
       />
+>>>>>>> e26961c635b60a007766324f445890a2e88d7232
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   root:         { flex: 1 },
+<<<<<<< HEAD
+  list:         { paddingTop: Spacing.xs, paddingBottom: Spacing.xl },
+  listHeader:   { gap: Spacing.md },
+  wallet:       { marginHorizontal: Spacing.base, borderRadius: Radius.lg, borderWidth: StyleSheet.hairlineWidth, padding: Spacing.lg, gap: Spacing.xs },
+  walletLabel:  { fontSize: FontSize.sm },
+  walletAmount: { fontSize: FontSize.display + 4, fontWeight: FontWeight.bold, letterSpacing: -0.5 },
+  payoutBtn:    { marginTop: Spacing.md },
+  walletHint:   { fontSize: FontSize.xs, textAlign: 'center', marginTop: Spacing.xs },
+  summaryRow:   { flexDirection: 'row', marginHorizontal: Spacing.base, gap: Spacing.sm },
+  summaryCard:  { flex: 1, borderRadius: Radius.lg, borderWidth: StyleSheet.hairlineWidth, padding: Spacing.md, gap: Spacing.xs },
+=======
   list:         { paddingBottom: 100 },
   header:       { paddingHorizontal: Spacing.base, paddingVertical: Spacing.md },
   title:        { fontSize: FontSize.h1, fontWeight: FontWeight.bold },
@@ -326,13 +467,15 @@ const styles = StyleSheet.create({
   duesBtnText:  { color: '#FFF', fontSize: FontSize.sm, fontWeight: FontWeight.bold },
   summaryRow:   { flexDirection: 'row', marginHorizontal: Spacing.base, marginBottom: Spacing.base, gap: Spacing.sm },
   summaryCard:  { flex: 1, borderRadius: Radius.lg, borderWidth: StyleSheet.hairlineWidth, padding: Spacing.md, alignItems: 'center', gap: 4 },
+>>>>>>> e26961c635b60a007766324f445890a2e88d7232
   summaryLabel: { fontSize: FontSize.xs },
-  summaryValue: { fontSize: FontSize.body, fontWeight: FontWeight.bold },
-  sectionTitle: { fontSize: FontSize.h3, fontWeight: FontWeight.bold, marginHorizontal: Spacing.base, marginTop: Spacing.base, marginBottom: Spacing.sm },
-  row:          { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, marginHorizontal: Spacing.base, marginBottom: Spacing.sm, borderRadius: Radius.lg, borderWidth: StyleSheet.hairlineWidth, padding: Spacing.md },
-  rowIcon:      { width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center' },
-  rowInfo:      { flex: 1, gap: 3 },
+  summaryValue: { fontSize: FontSize.h3, fontWeight: FontWeight.semibold },
+  sectionTitle: { fontSize: FontSize.h3, fontWeight: FontWeight.semibold, marginHorizontal: Spacing.base, marginTop: Spacing.sm, marginBottom: Spacing.xs },
+  row:          { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, marginHorizontal: Spacing.base, paddingHorizontal: Spacing.base, paddingVertical: Spacing.md, borderLeftWidth: StyleSheet.hairlineWidth, borderRightWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth },
+  rowFirst:     { borderTopWidth: StyleSheet.hairlineWidth, borderTopLeftRadius: Radius.lg, borderTopRightRadius: Radius.lg },
+  rowLast:      { borderBottomLeftRadius: Radius.lg, borderBottomRightRadius: Radius.lg },
+  rowInfo:      { flex: 1, gap: 2 },
   rowTitle:     { fontSize: FontSize.body, fontWeight: FontWeight.medium },
   rowTime:      { fontSize: FontSize.xs },
-  rowAmount:    { fontSize: FontSize.body, fontWeight: FontWeight.bold },
+  rowAmount:    { fontSize: FontSize.body, fontWeight: FontWeight.semibold },
 });

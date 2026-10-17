@@ -145,6 +145,12 @@ Always shrink photos with `compressImage()` (`utils/image.js`, ~1600px JPEG) bef
    For success or event feedback use `toast.success/info/warning/error(title, message, { onPress })` from
    `components/Toast.jsx`. Keep `Alert.alert` for confirmations and blocking errors.
 
+5a. **Instant vs scheduled jobs**: `job.isInstant` = the customer booked "Now" (push `type: instant_job`, longer
+   vibration, ⚡ in `JobRequestModal` / `JobCard`, listed first by `groupJobs`). The backend offers open requests in
+   rounds and cancels them if nobody accepts by `job.expiresAt` (`isExpiredRequest` hides them). Accepting can fail with
+   "You already have a job at … that overlaps this one" / "Finish your current job before taking an instant job" —
+   show it with `alertError`. Times from the API are naive UTC; normalizers convert `scheduledAt`/`expiresAt` to ISO `Z`.
+
 6. **Token refresh**: Handled silently in `utils/api.js` (15-minute access tokens) — screens never deal with it.
 
 7. **Branding**: The visible name comes from `constants/brand.js` (`APP_NAME` = "MULTIOKS Partner"). Never hardcode it.

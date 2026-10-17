@@ -1,55 +1,32 @@
-import React, { useState, useRef } from 'react';
-import { View, Text, Modal, TextInput, TouchableOpacity, StyleSheet, Animated } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons } from '@expo/vector-icons';
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet } from 'react-native';
 import { useTheme } from '@context/theme';
-import { FontSize, FontWeight, Spacing, Radius, Shadow } from '@constants/theme';
+import { FontSize, FontWeight, Spacing } from '@constants/theme';
+import BottomSheet from '@components/BottomSheet';
+import OtpInput from '@components/OtpInput';
+import Button from '@components/Button';
 
 const OTP_LENGTH = 4;
 
 export default function OTPVerifySheet({ visible, onVerify, onClose, loading, apiError, customerConfirmed }) {
   const { Colors } = useTheme();
-  const [digits, setDigits] = useState(Array(OTP_LENGTH).fill(''));
-  const [error, setError]   = useState('');
-  const inputs = useRef([]);
-  const slideY = useRef(new Animated.Value(300)).current;
+  const [code, setCode] = useState('');
 
-  React.useEffect(() => {
-    if (visible) {
-      setDigits(Array(OTP_LENGTH).fill(''));
-      setError('');
-      Animated.spring(slideY, { toValue: 0, tension: 60, friction: 10, useNativeDriver: true }).start();
-      setTimeout(() => inputs.current[0]?.focus(), 300);
-    } else {
-      slideY.setValue(300);
-    }
+  useEffect(() => {
+    if (visible) setCode('');
   }, [visible]);
 
-  const handleChange = (val, idx) => {
-    if (!/^[0-9]?$/.test(val)) return;
-    const next = [...digits];
-    next[idx] = val;
-    setDigits(next);
-    if (val && idx < OTP_LENGTH - 1) inputs.current[idx + 1]?.focus();
-    if (!val && idx > 0) inputs.current[idx - 1]?.focus();
-  };
-
-  const handleKeyPress = (e, idx) => {
-    if (e.nativeEvent.key === 'Backspace' && !digits[idx] && idx > 0) {
-      inputs.current[idx - 1]?.focus();
-    }
-  };
-
-  const handleSubmit = () => {
-    const code = digits.join('');
-    if (code.length < OTP_LENGTH) { setError('Enter the full 4-digit code'); return; }
-    setError('');
-    onVerify(code);
-  };
-
-  const isComplete = digits.every(d => d !== '');
+  const isComplete = code.length === OTP_LENGTH;
 
   return (
+<<<<<<< HEAD
+    <BottomSheet visible={visible} onClose={onClose} dismissible={!loading}>
+      <View style={styles.header}>
+        <Text style={[styles.title, { color: Colors.foreground }]}>Door code</Text>
+        <Text style={[styles.sub, { color: Colors.mutedForeground }]}>
+          Ask the customer for the 4-digit code shown in their app.
+        </Text>
+=======
     <Modal visible={visible} transparent animationType="none" onRequestClose={onClose}>
       <View style={styles.overlay}>
         <Animated.View style={[styles.sheet, { backgroundColor: Colors.surface, transform: [{ translateY: slideY }] }, Shadow.lg]}>
@@ -103,26 +80,40 @@ export default function OTPVerifySheet({ visible, onVerify, onClose, loading, ap
             </TouchableOpacity>
           </View>
         </Animated.View>
+>>>>>>> e26961c635b60a007766324f445890a2e88d7232
       </View>
-    </Modal>
+
+      <OtpInput
+        length={OTP_LENGTH}
+        value={code}
+        onChange={setCode}
+        autoFocus={visible}
+        focusDelay={300}
+        hasError={!!apiError}
+      />
+
+      {apiError ? <Text style={[styles.error, { color: Colors.error }]}>{apiError}</Text> : null}
+
+      <View style={styles.actions}>
+        <Button title="Cancel" variant="secondary" onPress={onClose} disabled={loading} style={styles.cancel} />
+        <Button
+          title="Verify and start"
+          onPress={() => onVerify(code)}
+          disabled={!isComplete}
+          loading={loading}
+          style={styles.verify}
+        />
+      </View>
+    </BottomSheet>
   );
 }
 
 const styles = StyleSheet.create({
-  overlay:    { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
-  sheet:      { borderTopLeftRadius: Radius.xl2, borderTopRightRadius: Radius.xl2, padding: Spacing.base, paddingBottom: 40, gap: Spacing.lg },
-  handle:     { width: 40, height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.2)', alignSelf: 'center', marginBottom: Spacing.sm },
-  header:     { alignItems: 'center', gap: Spacing.md },
-  iconCircle: { width: 64, height: 64, borderRadius: 32, justifyContent: 'center', alignItems: 'center' },
-  title:      { fontSize: FontSize.h2, fontWeight: FontWeight.bold },
-  sub:        { fontSize: FontSize.body, textAlign: 'center', lineHeight: 22 },
-  otpRow:     { flexDirection: 'row', gap: Spacing.sm, justifyContent: 'center' },
-  box:        { width: 64, height: 72, borderRadius: Radius.md, borderWidth: 1.5, textAlign: 'center', fontSize: FontSize.h1, fontWeight: FontWeight.bold },
-  error:      { textAlign: 'center', fontSize: FontSize.sm },
-  actions:    { flexDirection: 'row', gap: Spacing.sm },
-  cancelBtn:  { width: 90, height: 52, borderRadius: Radius.lg, borderWidth: 1, justifyContent: 'center', alignItems: 'center' },
-  cancelText: { fontSize: FontSize.body, fontWeight: FontWeight.medium },
-  verifyBtn:  { borderRadius: Radius.lg, overflow: 'hidden', height: 52 },
-  verifyGrad: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  verifyText: { color: '#FFF', fontSize: FontSize.body, fontWeight: FontWeight.bold },
+  header:  { gap: Spacing.xs },
+  title:   { fontSize: FontSize.h2, fontWeight: FontWeight.bold },
+  sub:     { fontSize: FontSize.sm, lineHeight: 20 },
+  error:   { fontSize: FontSize.sm, textAlign: 'center' },
+  actions: { flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.xs },
+  cancel:  { flex: 1 },
+  verify:  { flex: 2 },
 });

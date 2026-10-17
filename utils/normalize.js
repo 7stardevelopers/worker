@@ -8,7 +8,7 @@ export function normalizeCategory(cat) {
     id: cat.category_id,
     name: cat.name,
     color: cat.color ?? '#6366F1',
-    icon: cat.icon ?? '🔧',
+    icon: cat.icon ?? 'construct-outline',
     sortOrder: cat.sort_order ?? 0,
   };
 }
@@ -46,7 +46,7 @@ export function normalizeBooking(b) {
   return {
     id: b.booking_id,
     status: b.status ?? 'PENDING',
-    scheduledAt: b.scheduled_at,
+    scheduledAt: isoUtc(b.scheduled_at),
     totalAmount: fromPaise(b.total_amount),
     paymentStatus: b.payment_status,
     paymentMode: b.payment_mode ?? 'PAY_AFTER',
@@ -103,6 +103,11 @@ export function parseUtcMs(v) {
 }
 
 /** "4:32 PM · 5 min ago", "Yesterday, 9:10 AM", "12 Oct, 4:32 PM" — the real time a notification arrived. */
+function isoUtc(v) {
+  const ms = parseUtcMs(v);
+  return ms == null ? null : new Date(ms).toISOString();
+}
+
 export function notifTimeLabel(value) {
   const ms = parseUtcMs(value);
   if (ms == null) return '';
@@ -143,7 +148,10 @@ export function normalizeJob(b) {
     customerName:    b.customer_name ?? 'Customer',
     customerPhoto:   b.customer_photo ?? null,
     status:          b.status ?? 'PENDING',
-    scheduledAt:     b.scheduled_at,
+    // Backend datetimes are naive UTC — ISO with Z so new Date() never reads them as local time.
+    scheduledAt:     isoUtc(b.scheduled_at),
+    // An open request disappears (customer told "no expert") once this passes.
+    expiresAt:       isoUtc(b.expires_at),
     totalAmount:     fromPaise(b.total_amount),
     platformFee:     fromPaise(b.platform_fee),
     // Full job price before customer discounts (coupons/coins/plan are platform-funded).

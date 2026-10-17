@@ -1,6 +1,6 @@
 # Liquid Star — Design System Reference
 
-> Brand identity for 7StarExperts. Inspired by Apple Vision Pro glassmorphism + Vercel dark aesthetic + Linear precision. Dark-first. Never purple/white flat like Urban Company.
+> Brand identity for 7StarExperts. Clean, minimal, dark-first. Palette is fixed; the UI stays flat and quiet so content and actions lead.
 
 ---
 
@@ -40,23 +40,14 @@ Common alpha values: `'12'`=7%, `'18'`=9%, `'1A'`=10%, `'20'`=12%, `'35'`=21%, `
 
 ---
 
-## Gradients
+## Visual Style
 
-Always `expo-linear-gradient`. Primary brand gradient is indigo → violet.
+Clean and minimal. Solid surfaces, hairline borders, one accent color.
 
-```jsx
-// Primary CTA (horizontal)
-<LinearGradient colors={[Colors.primary, Colors.secondary]} start={{x:0,y:0}} end={{x:1,y:0}}>
-
-// Subtle top glow on active cards (vertical, transparent)
-<LinearGradient colors={[statusColor + '22', 'transparent']} start={{x:0,y:0}} end={{x:0,y:1}}>
-
-// Gold accent (subscription, ratings)
-<LinearGradient colors={[Colors.accent, '#FBBF24']} start={{x:0,y:0}} end={{x:1,y:0}}>
-
-// Dark map background
-<LinearGradient colors={['#0A0E1A', '#0D1220', '#101828']}>
-```
+- **No gradients, glows or decorative rings** in UI. `gradientPrimary`/`gradientAccent` tokens remain in `theme.js` for palette reference only.
+- **No emoji or decorative glyphs** in copy or UI (use Ionicons for icons).
+- **No shadows on cards** — separate with `Colors.border` hairlines instead.
+- Copy is sentence case, no exclamation marks.
 
 ---
 
@@ -122,114 +113,50 @@ Shadow.glow // indigo glow for active elements
 
 ## Component Patterns
 
+Use the shared components — don't rebuild these per screen.
+
+| Component | Use for |
+|-----------|---------|
+| `Button` | Every CTA. `variant`: `primary` (solid `Colors.primary`), `secondary`, `danger`, `ghost`. Fixed height, shows spinner via `loading`. |
+| `ScreenHeader` | Every screen header. `back` for stacked screens, `large` for tab roots, `right` slot for actions. |
+| `FooterBar` | Sticky bottom actions. In layout flow (never `position: absolute`), pads for safe-area inset. |
+| `BottomSheet` | All sheets/modals with content. Native-driver slide + backdrop fade, keyboard-aware, safe-area padded. |
+| `TextField` | All form inputs (label, focus border, optional hint). |
+| `OtpInput` | Any code entry. Boxes flex so they never overflow narrow screens. |
+| `LoadingScreen` | All loading states (see below). |
+| `EmptyState` | All empty/error states. |
+| `StatusPill` | Booking status. Colour from `Colors.status`, pulsing dot for EN_ROUTE / IN_PROGRESS. |
+
 ### Cards
 ```js
-style={[styles.card, { backgroundColor: Colors.surface, borderColor: Colors.border }, Shadow.md]}
-// card: { borderRadius: Radius.xl, borderWidth: StyleSheet.hairlineWidth }
+{ backgroundColor: Colors.surface, borderColor: Colors.border, borderWidth: StyleSheet.hairlineWidth, borderRadius: Radius.lg }
 ```
-**Never** add a left-side colored border strip/accent bar to cards. This pattern is forbidden.
+**Never** add a left-side colored border strip/accent bar to cards.
 
-### Glassmorphism Surface
-```js
-{ backgroundColor: Colors.glassBg, borderColor: Colors.glassBorder, borderWidth: 1, borderRadius: Radius.xl }
-// + Shadow.md
-```
-
-### Primary Button
-```jsx
-<TouchableOpacity style={styles.btn} activeOpacity={0.82}>
-  <LinearGradient colors={[Colors.primary, Colors.secondary]} start={{x:0,y:0}} end={{x:1,y:0}} style={styles.grad}>
-    <Text style={styles.btnText}>Action</Text>
-  </LinearGradient>
-</TouchableOpacity>
-// btn: { borderRadius: Radius.md, overflow: 'hidden' }
-// grad: { paddingHorizontal: 20, paddingVertical: 14, flexDirection: 'row', alignItems: 'center', gap: 6 }
-// btnText: { color: '#FFF', fontSize: FontSize.body, fontWeight: FontWeight.semibold }
-```
-
-### Secondary Button (Ghost)
-```js
-{ borderWidth: 1, borderColor: Colors.border, borderRadius: Radius.md, paddingHorizontal: 16, paddingVertical: 12 }
-```
-
-### Filter Chip / Pill
-```jsx
-// Active: backgroundColor: Colors.primary, borderColor: Colors.primary, text: '#FFF'
-// Inactive: backgroundColor: Colors.surface, borderColor: Colors.border, text: Colors.mutedForeground
-// Shape: borderRadius: Radius.full
-```
-
-### Status Badge / Pill
-```js
-{ backgroundColor: statusColor + '1A', borderColor: statusColor + '40', borderWidth: 1, borderRadius: Radius.full }
-// Icon or pulsing dot + text label
-// Pulsing dot for: PENDING, EN_ROUTE, IN_PROGRESS
-// Static icon for: ACCEPTED, COMPLETED, CANCELLED, REJECTED
-```
-
-### Provider Avatar (initials)
-```jsx
-<LinearGradient colors={[Colors.primary, Colors.secondary]} start={{x:0,y:0}} end={{x:1,y:1}}
-  style={{ width: 40, height: 40, borderRadius: 20, alignItems:'center', justifyContent:'center' }}>
-  <Text style={{ color:'#FFF', fontWeight:'700', fontSize: 15 }}>RK</Text>
-</LinearGradient>
-```
-
-### Bottom Sheet / Modal
-```js
-// Always use Animated.Value + Animated.spring — never animationType="slide"
-// Sheet: { borderTopLeftRadius: 28, borderTopRightRadius: 28 }
-// Handle bar: { width: 40, height: 4, borderRadius: 2, backgroundColor: Colors.border, alignSelf:'center' }
-// Backdrop: TouchableOpacity with { backgroundColor: 'rgba(0,0,0,0.55)' }
-```
-
-### Pulsing Dot (live status indicator)
-```jsx
-// Animated.loop → scale 1→2.0, opacity 0.75→0 over 750ms, then reset
-// Inner solid dot (6px) + outer animated ring (10px)
-// Color = statusColor for the booking status
-```
+### Layout rules (iOS + Android)
+- Screen root: `SafeAreaView edges={['top']}`; bottom inset is handled by `FooterBar` / `TabBar` / `BottomSheet`.
+- Screens with inputs wrap content in `KeyboardAvoidingView behavior="padding"` on **both** platforms (Android is edge-to-edge in SDK 54, so the window no longer resizes for the keyboard).
+- Never position footers absolutely over scroll content.
 
 ---
 
 ## Loading & Feedback Patterns
 
-### Skeleton Loaders
-Use `Skeleton.*` from `@components/Skeleton` for loading states. Never show empty UI — always skeleton while data loads.
-```jsx
-// During loading, replace real content:
-{loading ? (
-  <>
-    <Skeleton width="auto" height={110} radius={Radius.xl} style={{ marginHorizontal: Spacing.base }} />
-    {[...Array(3)].map((_, i) => <Skeleton.ServiceCard key={i} />)}
-  </>
-) : (
-  // real content
-)}
-```
+### Loading
+Loading is always a centred spinner via `LoadingScreen`:
+- `<LoadingScreen brand />` — app start / auth gate.
+- `<LoadingScreen overlay />` — rendered before the `ScreenHeader` so it centres on the full screen while the back button stays tappable.
+- Initial load only; refreshes on focus happen silently, pull-to-refresh uses `RefreshControl`.
 
 ### Empty States
-Use `EmptyState` from `@components/EmptyState`. Never use ad-hoc empty view — always use the shared component.
-- `compact` prop for inline empty states inside a section
-- `cta` prop for actionable empties (Clear Filters, Book Now, etc.)
-- Icon color should match the context (error → Colors.error, search → Colors.primary)
-
-### PressableScale
-Use instead of `TouchableOpacity` for cards, category items, featured banners:
-- Scale `0.98` — large banner/featured cards
-- Scale `0.96` (default) — standard cards, list items
-- Scale `0.93` — small chips, category items
+Use `EmptyState` from `@components/EmptyState`. Pass `cta` for actionable empties (Try again, Raise a ticket).
 
 ### Pull-to-Refresh
-Every full-page `ScrollView` that shows data should have `RefreshControl`. Show skeleton loading state while refreshing (`loading` flag, separate from `refreshing`).
+Every list screen that shows data has a `RefreshControl`.
 
 ---
 
-## Unique UX Elements (differentiation from competitors)
+## Distinguishing Details
 
-1. **Status pills with pulsing dot** — active bookings pulse, completed use static icons
-2. **Top gradient glow** — active booking cards get a subtle `statusColor + '22'` gradient at the top edge
-3. **Provider avatar** — always gradient initials, never a placeholder silhouette
-4. **Dark mock map** — grid tile pattern + road shapes for tracking preview
-5. **Glassmorphism live banner** — when booking is EN_ROUTE/IN_PROGRESS, a banner appears at top of bookings screen
-6. **Gold star accent** — `Colors.accent` (#F59E0B) for all ratings, premium indicators, subscription badges
+1. **Status pills with pulsing dot** — live bookings pulse, others are static.
+2. **Gold star accent** — `Colors.accent` for ratings only.

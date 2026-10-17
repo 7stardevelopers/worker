@@ -1,28 +1,46 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import {
+<<<<<<< HEAD
+  View, Text, FlatList, ScrollView, RefreshControl, StyleSheet, TouchableOpacity, Alert,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
+import * as Notifications from 'expo-notifications';
+=======
   View, Text, ScrollView, RefreshControl, StyleSheet, TouchableOpacity, Vibration,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { router, useFocusEffect } from 'expo-router';
+>>>>>>> e26961c635b60a007766324f445890a2e88d7232
 import { useTheme } from '@context/theme';
 import { useAuth } from '@context/auth';
 import { useProvider } from '@context/provider';
 import { FontSize, FontWeight, Spacing, Radius } from '@constants/theme';
 import { alertError } from '@utils/errors';
 import { api } from '@utils/api';
+<<<<<<< HEAD
+import { normalizeJob } from '@utils/normalize';
+import ScreenHeader from '@components/ScreenHeader';
+=======
 import { formatINR, fromPaise } from '@utils/money';
 import { groupJobs, todaySummary, isLiveJob, whenLabel } from '@utils/jobs';
 import useJobFeed from '@utils/useJobFeed';
 import { consumePendingRoute } from '@utils/notificationRouting';
 import useScreenFocus from '@utils/useScreenFocus';
+>>>>>>> e26961c635b60a007766324f445890a2e88d7232
 import JobCard from '@components/JobCard';
 import ActiveJobCard from '@components/ActiveJobCard';
 import OnlineToggle from '@components/OnlineToggle';
 import JobRequestModal from '@components/JobRequestModal';
+<<<<<<< HEAD
+import LoadingScreen from '@components/LoadingScreen';
+=======
 import { toast } from '@components/Toast';
 import Skeleton from '@components/Skeleton';
+>>>>>>> e26961c635b60a007766324f445890a2e88d7232
 import EmptyState from '@components/EmptyState';
 import BatteryBanner from '@components/BatteryBanner';
 
@@ -73,7 +91,8 @@ export default function JobsScreen() {
       // Don't interrupt a worker who is on the way to / working at a customer's home.
       if (hasLiveJob(jobs) || declined.has(job.id)) return;
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
-      Vibration.vibrate([0, 300, 150, 300]);
+      // Instant ("Now") requests buzz longer — the customer is waiting.
+      Vibration.vibrate(job.isInstant ? [0, 500, 200, 500, 200, 500] : [0, 300, 150, 300]);
       setIncomingJob(job);
     },
   });
@@ -117,12 +136,21 @@ export default function JobsScreen() {
     try {
       // Broadcast jobs have no provider yet — /accept atomically claims it (first worker wins).
       await api.patch(`/bookings/${incomingJob.id}/accept`, {}, token);
+<<<<<<< HEAD
+      const acceptedId = incomingJob.id;
+      setIncomingJob(null);
+      fetchJobs();
+      router.push(`/job/${acceptedId}`);
+=======
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       const id = incomingJob.id;
-      toast.success('Job accepted', `${incomingJob.service?.name ?? 'Job'} • ${whenLabel(incomingJob.scheduledAt)}`);
+      toast.success(incomingJob.isInstant ? 'Instant job accepted' : 'Job accepted',
+        incomingJob.isInstant ? 'Head out now and tap "I\'m on my way".'
+          : `${incomingJob.service?.name ?? 'Job'} • ${whenLabel(incomingJob.scheduledAt)}`);
       setIncomingJob(null);
       refresh();
       router.push(`/job/${id}`);
+>>>>>>> e26961c635b60a007766324f445890a2e88d7232
     } catch (e) {
       alertError('Job unavailable', e, 'Another partner may have already accepted it.');
       setIncomingJob(null);
@@ -132,9 +160,15 @@ export default function JobsScreen() {
     }
   };
 
+<<<<<<< HEAD
+  const handleReject = () => {
+    // Broadcast jobs have no per-provider decline — just dismiss locally so
+    // the job stays visible to other nearby providers.
+=======
   const handleDecline = () => {
     // No per-worker decline on the backend — hide it here so it stays open for others.
     if (incomingJob) setDeclined(prev => new Set(prev).add(incomingJob.id));
+>>>>>>> e26961c635b60a007766324f445890a2e88d7232
     setIncomingJob(null);
   };
 
@@ -145,8 +179,87 @@ export default function JobsScreen() {
   const showSkeleton = loading && jobs.length === 0;
   const loadFailed = !!error && jobs.length === 0;
 
+  const bell = (
+    <TouchableOpacity
+      onPress={() => router.push('/notifications')}
+      style={styles.iconBtn}
+      hitSlop={8}
+      activeOpacity={0.7}
+      accessibilityLabel="Notifications"
+    >
+      <Ionicons name="notifications-outline" size={22} color={Colors.foreground} />
+    </TouchableOpacity>
+  );
+
   return (
     <SafeAreaView style={[styles.root, { backgroundColor: Colors.background }]} edges={['top']}>
+<<<<<<< HEAD
+      <ScreenHeader large title="Jobs" right={bell} />
+
+      {loading ? (
+        <LoadingScreen overlay />
+      ) : (
+        <FlatList
+          data={filteredJobs}
+          keyExtractor={item => String(item.id)}
+          contentContainerStyle={styles.list}
+          showsVerticalScrollIndicator={false}
+          ListHeaderComponent={
+            <View style={styles.listHeader}>
+              <OnlineToggle isOnline={isAvailable} onToggle={toggleAvailability} loading={provLoading} />
+
+              {!locationOk && (
+                <View style={[styles.banner, { backgroundColor: Colors.warning + '14', borderColor: Colors.warning + '40' }]}>
+                  <Ionicons name="location-outline" size={16} color={Colors.warning} />
+                  <Text style={[styles.bannerText, { color: Colors.foreground }]}>
+                    Allow location access "All the time" to go online and receive jobs.
+                  </Text>
+                </View>
+              )}
+
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.filterRow}
+              >
+                {FILTERS.map(f => {
+                  const active = filter === f;
+                  return (
+                    <TouchableOpacity
+                      key={f}
+                      style={[
+                        styles.chip,
+                        {
+                          backgroundColor: active ? Colors.primary : Colors.surface,
+                          borderColor: active ? Colors.primary : Colors.border,
+                        },
+                      ]}
+                      onPress={() => setFilter(f)}
+                      activeOpacity={0.75}
+                    >
+                      <Text style={[styles.chipText, { color: active ? Colors.onPrimary : Colors.mutedForeground }]}>
+                        {f}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            </View>
+          }
+          ListEmptyComponent={
+            <EmptyState
+              icon="briefcase-outline"
+              title={filter === 'All' ? 'No jobs yet' : `No ${filter.toLowerCase()} jobs`}
+              subtitle={isAvailable ? 'New job requests will appear here.' : 'Go online to start receiving jobs.'}
+            />
+          }
+          renderItem={({ item }) => <JobCard job={item} />}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} colors={[Colors.primary]} />
+          }
+        />
+      )}
+=======
       <View style={styles.header}>
         <View style={{ flex: 1 }}>
           <Text style={[styles.greeting, { color: Colors.mutedForeground }]}>{greeting()}</Text>
@@ -256,6 +369,7 @@ export default function JobsScreen() {
           </>
         )}
       </ScrollView>
+>>>>>>> e26961c635b60a007766324f445890a2e88d7232
 
       <JobRequestModal
         visible={!!incomingJob}
@@ -270,6 +384,17 @@ export default function JobsScreen() {
 }
 
 const styles = StyleSheet.create({
+<<<<<<< HEAD
+  root:       { flex: 1 },
+  iconBtn:    { width: 40, height: 40, justifyContent: 'center', alignItems: 'center', marginRight: -Spacing.sm },
+  list:       { paddingTop: Spacing.xs, paddingBottom: Spacing.xl },
+  listHeader: { gap: Spacing.md, marginBottom: Spacing.md },
+  banner:     { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginHorizontal: Spacing.base, padding: Spacing.md, borderRadius: Radius.md, borderWidth: StyleSheet.hairlineWidth },
+  bannerText: { flex: 1, fontSize: FontSize.sm, lineHeight: 18 },
+  filterRow:  { paddingHorizontal: Spacing.base, gap: Spacing.sm },
+  chip:       { borderRadius: Radius.full, borderWidth: StyleSheet.hairlineWidth, paddingHorizontal: Spacing.base, height: 34, justifyContent: 'center' },
+  chipText:   { fontSize: FontSize.sm, fontWeight: FontWeight.medium },
+=======
   root:         { flex: 1 },
   header:       { flexDirection: 'row', alignItems: 'center', paddingHorizontal: Spacing.base, paddingVertical: Spacing.md, gap: Spacing.md },
   greeting:     { fontSize: FontSize.sm },
@@ -291,4 +416,5 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: FontSize.h3, fontWeight: FontWeight.semibold },
   countPill:    { borderRadius: Radius.full, paddingHorizontal: 8, paddingVertical: 2 },
   countText:    { fontSize: FontSize.xs, fontWeight: FontWeight.bold },
+>>>>>>> e26961c635b60a007766324f445890a2e88d7232
 });

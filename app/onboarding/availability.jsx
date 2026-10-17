@@ -1,19 +1,28 @@
 import React, { useState } from 'react';
-import {
-  View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert,
-} from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { useTheme } from '@context/theme';
 import { useAuth } from '@context/auth';
 import { FontSize, FontWeight, Spacing, Radius } from '@constants/theme';
 import { api } from '@utils/api';
+<<<<<<< HEAD
+import OnboardingHeader from '@components/OnboardingHeader';
+import FooterBar from '@components/FooterBar';
+import Button from '@components/Button';
+=======
 import { goBackFrom } from '@utils/onboarding';
+>>>>>>> e26961c635b60a007766324f445890a2e88d7232
 
-const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-const SLOTS = ['06:00–09:00', '09:00–12:00', '12:00–15:00', '15:00–18:00', '18:00–21:00'];
+const DAYS  = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+const SLOTS = [
+  { key: '06:00–09:00', start: '6 AM',  end: '9 AM'  },
+  { key: '09:00–12:00', start: '9 AM',  end: '12 PM' },
+  { key: '12:00–15:00', start: '12 PM', end: '3 PM'  },
+  { key: '15:00–18:00', start: '3 PM',  end: '6 PM'  },
+  { key: '18:00–21:00', start: '6 PM',  end: '9 PM'  },
+];
 
 export default function AvailabilityScreen() {
   const { Colors } = useTheme();
@@ -25,16 +34,17 @@ export default function AvailabilityScreen() {
     const key = `${day}__${slot}`;
     setSchedule(prev => {
       const next = { ...prev };
-      next[key] ? delete next[key] : (next[key] = true);
+      if (next[key]) delete next[key]; else next[key] = true;
       return next;
     });
   };
 
   const isSelected = (day, slot) => !!schedule[`${day}__${slot}`];
+  const count = Object.keys(schedule).length;
 
   const handleSubmit = async () => {
-    if (Object.keys(schedule).length === 0) {
-      Alert.alert('Required', 'Select at least one availability slot');
+    if (count === 0) {
+      Alert.alert('Required', 'Select at least one time slot.');
       return;
     }
     setSaving(true);
@@ -45,12 +55,24 @@ export default function AvailabilityScreen() {
     } finally {
       setSaving(false);
     }
+<<<<<<< HEAD
+    Alert.alert(
+      'Application submitted',
+      'Your profile is now under review. We will notify you within 24 hours once approved.',
+      [{ text: 'OK', onPress: () => router.replace('/') }]
+    );
+=======
     // Last step is the camera selfie — saving it submits the application.
     router.push('/onboarding/photo');
+>>>>>>> e26961c635b60a007766324f445890a2e88d7232
   };
 
   return (
     <SafeAreaView style={[styles.root, { backgroundColor: Colors.background }]} edges={['top']}>
+<<<<<<< HEAD
+      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+        <OnboardingHeader step={5} title="Availability" subtitle="Tap the slots when you can usually take jobs." />
+=======
       <ScrollView contentContainerStyle={styles.scroll}>
 
         <View style={styles.header}>
@@ -62,22 +84,24 @@ export default function AvailabilityScreen() {
             <Text style={[styles.sub, { color: Colors.mutedForeground }]}>Choose your working hours</Text>
           </View>
         </View>
+>>>>>>> e26961c635b60a007766324f445890a2e88d7232
 
         <View style={styles.grid}>
-          <View style={styles.gridHeader}>
-            <View style={styles.dayLabelCol} />
+          <View style={styles.gridRow}>
+            <View style={styles.slotCol} />
             {DAYS.map(d => (
               <Text key={d} style={[styles.dayLabel, { color: Colors.mutedForeground }]}>{d}</Text>
             ))}
           </View>
 
           {SLOTS.map(slot => (
-            <View key={slot} style={styles.slotRow}>
-              <Text style={[styles.slotLabel, { color: Colors.mutedForeground }]} numberOfLines={2}>
-                {slot.replace('–', '\n')}
-              </Text>
+            <View key={slot.key} style={styles.gridRow}>
+              <View style={styles.slotCol}>
+                <Text style={[styles.slotText, { color: Colors.foreground }]}>{slot.start}</Text>
+                <Text style={[styles.slotSub, { color: Colors.subtleForeground }]}>{slot.end}</Text>
+              </View>
               {DAYS.map(day => {
-                const active = isSelected(day, slot);
+                const active = isSelected(day, slot.key);
                 return (
                   <TouchableOpacity
                     key={day}
@@ -88,10 +112,13 @@ export default function AvailabilityScreen() {
                         borderColor: active ? Colors.primary : Colors.border,
                       },
                     ]}
-                    onPress={() => toggle(day, slot)}
+                    onPress={() => toggle(day, slot.key)}
                     activeOpacity={0.7}
+                    accessibilityRole="checkbox"
+                    accessibilityState={{ checked: active }}
+                    accessibilityLabel={`${day} ${slot.start} to ${slot.end}`}
                   >
-                    {active && <Ionicons name="checkmark" size={12} color="#FFF" />}
+                    {active ? <Ionicons name="checkmark" size={14} color={Colors.onPrimary} /> : null}
                   </TouchableOpacity>
                 );
               })}
@@ -100,10 +127,15 @@ export default function AvailabilityScreen() {
         </View>
 
         <Text style={[styles.hint, { color: Colors.mutedForeground }]}>
-          Tap cells to toggle availability. You can update this anytime from your profile.
+          {count > 0 ? `${count} slot${count === 1 ? '' : 's'} selected. ` : ''}You can change this later.
         </Text>
       </ScrollView>
 
+<<<<<<< HEAD
+      <FooterBar>
+        <Button title="Submit application" onPress={handleSubmit} disabled={count === 0} loading={saving} />
+      </FooterBar>
+=======
       <View style={[styles.footer, { borderTopColor: Colors.border }]}>
         <TouchableOpacity
           style={[styles.submitBtn, { opacity: !saving ? 1 : 0.6 }]}
@@ -117,26 +149,20 @@ export default function AvailabilityScreen() {
           </LinearGradient>
         </TouchableOpacity>
       </View>
+>>>>>>> e26961c635b60a007766324f445890a2e88d7232
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  root:        { flex: 1 },
-  scroll:      { padding: Spacing.base, paddingBottom: 120, gap: Spacing.base },
-  header:      { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, paddingBottom: Spacing.md },
-  title:       { fontSize: FontSize.h2, fontWeight: FontWeight.bold },
-  sub:         { fontSize: FontSize.sm },
-  grid:        { gap: 8 },
-  gridHeader:  { flexDirection: 'row', alignItems: 'center' },
-  dayLabelCol: { width: 54 },
-  dayLabel:    { flex: 1, textAlign: 'center', fontSize: 10, fontWeight: FontWeight.bold },
-  slotRow:     { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  slotLabel:   { width: 54, fontSize: 9, lineHeight: 13 },
-  cell:        { flex: 1, height: 36, borderRadius: 6, borderWidth: 1, justifyContent: 'center', alignItems: 'center' },
-  hint:        { fontSize: FontSize.xs, textAlign: 'center', lineHeight: 20 },
-  footer:      { position: 'absolute', bottom: 0, left: 0, right: 0, padding: Spacing.base, paddingBottom: 36, borderTopWidth: StyleSheet.hairlineWidth },
-  submitBtn:   { borderRadius: Radius.lg, overflow: 'hidden', height: 56 },
-  submitGrad:  { flex: 1, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: Spacing.sm },
-  submitText:  { color: '#FFF', fontSize: FontSize.body, fontWeight: FontWeight.bold },
+  root:     { flex: 1 },
+  scroll:   { padding: Spacing.base, paddingTop: 0, gap: Spacing.lg },
+  grid:     { gap: Spacing.xs + 2 },
+  gridRow:  { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs },
+  slotCol:  { width: 48 },
+  dayLabel: { flex: 1, textAlign: 'center', fontSize: FontSize.xs, fontWeight: FontWeight.medium },
+  slotText: { fontSize: FontSize.xs, fontWeight: FontWeight.medium },
+  slotSub:  { fontSize: FontSize.xs - 1 },
+  cell:     { flex: 1, aspectRatio: 1, maxHeight: 44, borderRadius: Radius.sm, borderWidth: StyleSheet.hairlineWidth, justifyContent: 'center', alignItems: 'center' },
+  hint:     { fontSize: FontSize.sm, textAlign: 'center' },
 });

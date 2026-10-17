@@ -1,25 +1,29 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import {
-  View, Text, StyleSheet, TouchableOpacity, Image, ActivityIndicator,
-} from 'react-native';
+import { View, Text, StyleSheet, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useLocalSearchParams, router } from 'expo-router';
-import { useColors } from '@context/theme';
+import { useLocalSearchParams } from 'expo-router';
+import { useTheme } from '@context/theme';
 import { useAuth } from '@context/auth';
 import { api } from '@utils/api';
+import { FontSize, FontWeight, Spacing, Radius } from '@constants/theme';
+import ScreenHeader from '@components/ScreenHeader';
+import LoadingScreen from '@components/LoadingScreen';
 import EmptyState from '@components/EmptyState';
+<<<<<<< HEAD
+=======
 import { FontSize, FontWeight, Spacing, Radius, Shadow } from '@constants/theme';
 import { friendlyError } from '@utils/errors';
+>>>>>>> e26961c635b60a007766324f445890a2e88d7232
 
 export default function CustomerProfile() {
   const { id } = useLocalSearchParams();
   const { token } = useAuth();
-  const Colors = useColors();
+  const { Colors } = useTheme();
 
   const [customer, setCustomer] = useState(null);
-  const [loading, setLoading]   = useState(true);
-  const [error, setError]       = useState(null);
+  const [loading,  setLoading]  = useState(true);
+  const [error,    setError]    = useState(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -41,70 +45,44 @@ export default function CustomerProfile() {
     : null;
 
   return (
-    <View style={[styles.root, { backgroundColor: Colors.background }]}>
-      <SafeAreaView edges={['top']} style={{ backgroundColor: Colors.background }}>
-        <View style={styles.header}>
-          <TouchableOpacity
-            onPress={() => router.back()}
-            style={[styles.backBtn, { backgroundColor: Colors.surface, borderColor: Colors.border }]}
-          >
-            <Ionicons name="arrow-back" size={18} color={Colors.foreground} />
-          </TouchableOpacity>
-          <Text style={[styles.headerTitle, { color: Colors.foreground }]}>Customer</Text>
-          <View style={{ width: 36 }} />
-        </View>
-      </SafeAreaView>
+    <SafeAreaView style={[styles.root, { backgroundColor: Colors.background }]} edges={['top']}>
+      {loading ? <LoadingScreen overlay /> : null}
+      <ScreenHeader back title="Customer" />
 
-      {loading ? (
-        <View style={styles.centered}>
-          <ActivityIndicator size="large" color={Colors.primary} />
-        </View>
-      ) : error || !customer ? (
-        <View style={styles.centered}>
+      {loading ? null : error || !customer ? (
+        <View style={styles.centerFill}>
           <EmptyState
             icon="alert-circle-outline"
             title="Profile unavailable"
             subtitle={error ?? 'This customer profile could not be loaded.'}
+            cta={{ label: 'Try again', onPress: load }}
           />
         </View>
       ) : (
-        <View style={[styles.card, Shadow.md, { backgroundColor: Colors.surface, borderColor: Colors.border, margin: Spacing.base }]}>
+        <View style={[styles.card, { backgroundColor: Colors.surface, borderColor: Colors.border }]}>
           {customer.photo_url ? (
-            <Image source={{ uri: customer.photo_url }} style={styles.avatarImg} />
+            <Image source={{ uri: customer.photo_url }} style={styles.avatar} />
           ) : (
-            <View style={[styles.avatar, { backgroundColor: Colors.primary + '18' }]}>
-              <Ionicons name="person" size={36} color={Colors.primary} />
+            <View style={[styles.avatar, styles.avatarFallback, { backgroundColor: Colors.surfaceRaised }]}>
+              <Ionicons name="person" size={32} color={Colors.mutedForeground} />
             </View>
           )}
           <Text style={[styles.name, { color: Colors.foreground }]}>{customer.name ?? 'Customer'}</Text>
           {memberSince ? (
-            <Text style={{ color: Colors.mutedForeground, fontSize: FontSize.sm, marginTop: 4 }}>
-              Customer since {memberSince}
-            </Text>
+            <Text style={[styles.since, { color: Colors.mutedForeground }]}>Customer since {memberSince}</Text>
           ) : null}
         </View>
       )}
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  root:   { flex: 1 },
-  centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  header: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: Spacing.base, paddingVertical: Spacing.sm,
-  },
-  backBtn: {
-    width: 36, height: 36, borderRadius: Radius.md, borderWidth: 1,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  headerTitle: { fontSize: FontSize.h3, fontWeight: FontWeight.semibold },
-  card: {
-    borderRadius: Radius.xl, borderWidth: 1, padding: Spacing.lg,
-    alignItems: 'center',
-  },
-  avatar:    { width: 84, height: 84, borderRadius: 42, alignItems: 'center', justifyContent: 'center' },
-  avatarImg: { width: 84, height: 84, borderRadius: 42 },
-  name:      { fontSize: FontSize.h2, fontWeight: FontWeight.bold, marginTop: Spacing.sm },
+  root:           { flex: 1 },
+  centerFill:     { flex: 1, justifyContent: 'center' },
+  card:           { margin: Spacing.base, borderRadius: Radius.lg, borderWidth: StyleSheet.hairlineWidth, padding: Spacing.xl, alignItems: 'center', gap: Spacing.xs },
+  avatar:         { width: 80, height: 80, borderRadius: 40, marginBottom: Spacing.sm },
+  avatarFallback: { justifyContent: 'center', alignItems: 'center' },
+  name:           { fontSize: FontSize.h2, fontWeight: FontWeight.semibold },
+  since:          { fontSize: FontSize.sm },
 });

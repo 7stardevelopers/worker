@@ -11,13 +11,14 @@ Check each of the following and report pass/fail with line numbers:
 
 **Cards & Layout**
 - [ ] No left-side accent bars or border strips (width: 3-6, height: 100%, colorful) — strictly forbidden
-- [ ] Cards use `Radius.xl` (20px) or `Radius.lg` (16px) border radius
-- [ ] Card shadows use `Shadow.sm/md/lg` spread into style arrays — not inline shadow props
+- [ ] Cards use `Radius.lg` (16px) border radius
+- [ ] Cards are flat (no shadows, gradients or glows)
 - [ ] Cards have `borderWidth: StyleSheet.hairlineWidth` or `borderWidth: 1` with `borderColor: Colors.border`
 
 **Buttons**
-- [ ] Primary CTAs use `LinearGradient` with `[Colors.primary, Colors.secondary]`
-- [ ] Secondary CTAs use border + transparent background (ghost style)
+- [ ] CTAs use the shared `Button` component (solid `Colors.primary` for primary)
+- [ ] Bottom actions use `FooterBar` (no `position: absolute` footers)
+- [ ] No emoji or decorative glyphs in UI copy
 - [ ] `activeOpacity` is set on all `TouchableOpacity` elements (0.75–0.88 range)
 
 **Typography**
@@ -33,8 +34,9 @@ Check each of the following and report pass/fail with line numbers:
 - [ ] Active/live statuses (EN_ROUTE, IN_PROGRESS) show a pulsing animated dot, not a static icon
 
 **Modals / Bottom Sheets**
-- [ ] Use `Animated.Value` + spring for slide-in, not `animationType="slide"` on `<Modal>`
-- [ ] Dimmed backdrop is a `TouchableOpacity` with `backgroundColor: 'rgba(0,0,0,0.55)'`
-- [ ] Has a pull handle bar at the top
+- [ ] Uses the shared `BottomSheet` component (not `animationType="slide"` on `<Modal>`)
+
+**Loading**
+- [ ] Loading states use `LoadingScreen` and are centred on screen
 
 After the audit, list what needs fixing and make the fixes if any issues are found.
