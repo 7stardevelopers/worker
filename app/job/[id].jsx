@@ -13,6 +13,7 @@ import { useTheme } from '@context/theme';
 import { useAuth } from '@context/auth';
 import { FontSize, FontWeight, Spacing, Radius, Shadow } from '@constants/theme';
 import { api } from '@utils/api';
+import Notifications from '@utils/notifications';
 import { alertError, friendlyError } from '@utils/errors';
 import { normalizeJob } from '@utils/normalize';
 import { formatINR } from '@utils/money';
@@ -114,9 +115,21 @@ export default function JobDetailScreen() {
       if (needsTracking({ status: j.status, scheduled_at: j.scheduledAt, providerDoneAt: j.providerDoneAt })) startLocationTracking({ silent: true, enRoute: j.status === 'EN_ROUTE', keepFast: true }).catch(() => {});
       else if (['CANCELLED', 'REJECTED', 'COMPLETED'].includes(j.status)) stopLocationTracking().catch(() => {});
     } catch (e) {
+      // Taken by another partner / cancelled since we opened it — show "no longer available".
+      if (e?.status === 403 || e?.status === 404) setJob(null);
       setLoadError(e);
     }
   }, [id, token]);
+
+  // A request this worker is looking at was accepted by someone else (silent push).
+  useEffect(() => {
+    if (!Notifications) return undefined;
+    const sub = Notifications.addNotificationReceivedListener(n => {
+      const { type, booking_id: bookingId } = n.request.content.data ?? {};
+      if (type === 'job_taken' && bookingId === id) fetchJob();
+    });
+    return () => sub.remove();
+  }, [id, fetchJob]);
 
   useFocusEffect(
     useCallback(() => {

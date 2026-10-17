@@ -68,6 +68,7 @@ export default function JobsScreen() {
   const { jobs, loading, error, refresh } = useJobFeed({
     token,
     isAvailable,
+    fastPoll: !!incomingJob,
     onNewRequest: job => {
       // Don't interrupt a worker who is on the way to / working at a customer's home.
       if (hasLiveJob(jobs) || declined.has(job.id)) return;
@@ -76,6 +77,15 @@ export default function JobsScreen() {
       setIncomingJob(job);
     },
   });
+
+  // Another partner accepted it (or the customer cancelled) — close the popup, Rapido-style.
+  useEffect(() => {
+    if (!incomingJob || accepting) return;
+    if (!jobs.some(j => j.id === incomingJob.id && j.status === 'PENDING')) {
+      setIncomingJob(null);
+      toast.info('Job taken', 'Another partner accepted this job.');
+    }
+  }, [jobs, incomingJob, accepting]);
 
   const groups = useMemo(() => {
     const g = groupJobs(jobs);

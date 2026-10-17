@@ -61,6 +61,7 @@ function AppContent() {
     const recvSub = Notifications.addNotificationReceivedListener(n => {
       const { title, body, data = {} } = n.request.content ?? {};
       if (data.type === 'new_message' && isViewingChat(data.booking_id)) return;
+      if (data.type === 'job_taken') return; // silent — useJobFeed removes the job
       const target = routeForNotification(data);
       const kind = data.type === 'job_available' || data.type === 'instant_job' ? 'warning'
         : /cancel|fail|reject|suspend/i.test(`${data.type} ${data.status ?? ''}`) ? 'error'
