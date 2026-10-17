@@ -23,7 +23,9 @@ import '@utils/location';
 Notifications?.setNotificationHandler({
   handleNotification: async (notification) => {
     const data = notification?.request?.content?.data ?? {};
-    const hide = data.type === 'new_message' && isViewingChat(data.booking_id);
+    // job_taken is a silent push — useJobFeed removes the job; nothing goes to the tray.
+    const silent = data.type === 'job_taken';
+    const hide = silent || (data.type === 'new_message' && isViewingChat(data.booking_id));
     const isJob = data.type === 'job_available' || data.type === 'instant_job';
     return {
       shouldShowBanner: false,
