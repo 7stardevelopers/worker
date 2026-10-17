@@ -9,15 +9,15 @@ export const isAwaitingCustomer = j => j.status === 'IN_PROGRESS' && !!j.provide
 /** On the way to / working at a customer's home (a job awaiting confirmation doesn't count). */
 export const isLiveJob = j => LIVE_STATUSES.includes(j.status) && !isAwaitingCustomer(j);
 
-const byScheduled =(a, b) => new Date(a.scheduledAt) - new Date(b.scheduledAt);
+const byScheduled = (a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime();
 const byInstantThenScheduled = (a, b) => (b.isInstant ? 1 : 0) - (a.isInstant ? 1 : 0) || byScheduled(a, b);
 
 /** An unclaimed request the backend has stopped offering (nobody accepted in time). */
 export const isExpiredRequest = j => j.status === 'PENDING' && !!j.expiresAt && Date.parse(j.expiresAt) <= Date.now();
 
 /** "Now (instant)" for instant jobs, else the scheduled time. */
-export const jobWhenLabel = job => (job?.isInstant && job.status === 'PENDING' ? 'Now — customer is waiting' : whenLabel(job?.scheduledAt));
-const byRecent = (a, b) => new Date(b.scheduledAt ?? b.createdAt) - new Date(a.scheduledAt ?? a.createdAt);
+export const jobWhenLabel = job => (job?.isInstant && job.status === 'PENDING' ? 'Now, customer is waiting' : whenLabel(job?.scheduledAt));
+const byRecent = (a, b) => new Date(b.scheduledAt ?? b.createdAt).getTime() - new Date(a.scheduledAt ?? a.createdAt).getTime();
 
 const isSameDay = (iso, day = new Date()) => !!iso && new Date(iso).toDateString() === day.toDateString();
 

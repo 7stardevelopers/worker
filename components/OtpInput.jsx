@@ -57,5 +57,5 @@ const styles = StyleSheet.create({
   row:    { flexDirection: 'row', justifyContent: 'center', gap: Spacing.sm },
   box:    { flex: 1, maxWidth: 56, height: 56, borderRadius: Radius.md, borderWidth: 1, justifyContent: 'center', alignItems: 'center' },
   digit:  { fontSize: FontSize.h2, fontWeight: FontWeight.semibold, includeFontPadding: false },
-  hidden: { ...StyleSheet.absoluteFillObject, opacity: 0 },
+  hidden: { ...StyleSheet.absoluteFill, opacity: 0 },
 });

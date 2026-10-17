@@ -33,7 +33,7 @@ export default function LoadingScreen({ label, brand = false, overlay = false })
 
 const styles = StyleSheet.create({
   root:    { flex: 1, justifyContent: 'center', alignItems: 'center', padding: Spacing.xl, gap: Spacing.base },
-  overlay: { ...StyleSheet.absoluteFillObject },
+  overlay: { ...StyleSheet.absoluteFill },
   brand:   { alignItems: 'center', gap: Spacing.md, marginBottom: Spacing.xl },
   appName: { fontSize: FontSize.h2, fontWeight: FontWeight.bold },
   label:   { fontSize: FontSize.sm, textAlign: 'center' },

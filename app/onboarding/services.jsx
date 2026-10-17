@@ -1,10 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import {
-  View, Text, FlatList, TouchableOpacity, StyleSheet, Alert,
-} from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useTheme } from '@context/theme';
 import { useAuth } from '@context/auth';
@@ -12,8 +9,11 @@ import { useProvider } from '@context/provider';
 import { FontSize, FontWeight, Spacing, Radius } from '@constants/theme';
 import { alertError } from '@utils/errors';
 import { api } from '@utils/api';
-import { goBackFrom } from '@utils/onboarding';
 import { normalizeService } from '@utils/normalize';
+import OnboardingHeader from '@components/OnboardingHeader';
+import LoadingScreen from '@components/LoadingScreen';
+import FooterBar from '@components/FooterBar';
+import Button from '@components/Button';
 
 export default function ServicesScreen() {
   const { Colors } = useTheme();
@@ -21,10 +21,10 @@ export default function ServicesScreen() {
   const { profile, fetchProfile } = useProvider();
   const editing = useLocalSearchParams().mode === 'edit';
 
-  const [services,  setServices]  = useState([]);
-  const [selected,  setSelected]  = useState(new Set());
-  const [loading,   setLoading]   = useState(true);
-  const [saving,    setSaving]    = useState(false);
+  const [services, setServices] = useState([]);
+  const [selected, setSelected] = useState(new Set());
+  const [loading,  setLoading]  = useState(true);
+  const [saving,   setSaving]   = useState(false);
 
   useEffect(() => {
     if (Array.isArray(profile?.services)) {
@@ -45,13 +45,13 @@ export default function ServicesScreen() {
   const toggle = (id) => {
     setSelected(prev => {
       const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
+      if (next.has(id)) next.delete(id); else next.add(id);
       return next;
     });
   };
 
   const handleNext = async () => {
-    if (selected.size === 0) { Alert.alert('Required', 'Select at least one service'); return; }
+    if (selected.size === 0) { Alert.alert('Required', 'Select at least one service.'); return; }
     setSaving(true);
     try {
       await api.patch('/providers/me/services', { service_ids: Array.from(selected) }, token);
@@ -66,79 +66,69 @@ export default function ServicesScreen() {
 
   return (
     <SafeAreaView style={[styles.root, { backgroundColor: Colors.background }]} edges={['top']}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => goBackFrom('services')} hitSlop={12} accessibilityRole="button" accessibilityLabel="Back">
-          <Ionicons name="arrow-back" size={24} color={Colors.foreground} />
-        </TouchableOpacity>
-        <View style={styles.headerText}>
-          <Text style={[styles.title, { color: Colors.foreground }]}>Services You Offer</Text>
-          <Text style={[styles.sub, { color: Colors.mutedForeground }]}>{selected.size} selected</Text>
-        </View>
-      </View>
-
+      {loading ? <LoadingScreen overlay /> : null}
       <FlatList
-        data={services}
-        keyExtractor={item => item.id}
+        data={loading ? [] : services}
+        keyExtractor={item => String(item.id)}
         numColumns={2}
         contentContainerStyle={styles.grid}
         columnWrapperStyle={styles.row}
+        ListHeaderComponent={
+          <OnboardingHeader
+            stepKey="services"
+            editing={editing}
+            title="Your services"
+            subtitle={selected.size ? `${selected.size} selected` : 'Choose the work you can do.'}
+          />
+        }
         renderItem={({ item }) => {
           const isSelected = selected.has(item.id);
           return (
             <TouchableOpacity
               style={[
-                styles.chip,
+                styles.tile,
                 {
-                  backgroundColor: isSelected ? Colors.primary + '20' : Colors.surface,
+                  backgroundColor: Colors.surface,
                   borderColor: isSelected ? Colors.primary : Colors.border,
                 },
+                isSelected && styles.tileSelected,
               ]}
               onPress={() => toggle(item.id)}
-              activeOpacity={0.8}
+              activeOpacity={0.75}
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: isSelected }}
+              accessibilityLabel={item.name}
             >
-              {isSelected && (
-                <View style={[styles.checkMark, { backgroundColor: Colors.primary }]}>
-                  <Ionicons name="checkmark" size={10} color="#FFF" />
-                </View>
-              )}
-              <Text style={[styles.chipText, { color: isSelected ? Colors.primary : Colors.foreground }]} numberOfLines={2}>
+              <Text style={[styles.tileText, { color: Colors.foreground }]} numberOfLines={2}>
                 {item.name}
               </Text>
+              <Ionicons
+                name={isSelected ? 'checkmark-circle' : 'ellipse-outline'}
+                size={20}
+                color={isSelected ? Colors.primary : Colors.subtleForeground}
+              />
             </TouchableOpacity>
           );
         }}
       />
 
-      <View style={[styles.footer, { borderTopColor: Colors.border }]}>
-        <TouchableOpacity
-          style={[styles.nextBtn, { opacity: !saving ? 1 : 0.6 }]}
+      <FooterBar>
+        <Button
+          title={editing ? 'Save' : 'Continue'}
           onPress={handleNext}
-          disabled={saving}
-          activeOpacity={0.85}
-        >
-          <LinearGradient colors={Colors.gradientPrimary} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.nextGrad}>
-            <Text style={styles.nextText}>{saving ? 'Saving...' : editing ? 'Save' : 'Next: Documents'}</Text>
-            <Ionicons name="arrow-forward" size={18} color="#FFF" />
-          </LinearGradient>
-        </TouchableOpacity>
-      </View>
+          disabled={selected.size === 0}
+          loading={saving}
+        />
+      </FooterBar>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  root:      { flex: 1 },
-  header:    { flexDirection: 'row', alignItems: 'center', padding: Spacing.base, gap: Spacing.md },
-  headerText:{ flex: 1 },
-  title:     { fontSize: FontSize.h2, fontWeight: FontWeight.bold },
-  sub:       { fontSize: FontSize.sm },
-  grid:      { padding: Spacing.base, paddingBottom: 120, gap: Spacing.sm },
-  row:       { gap: Spacing.sm },
-  chip:      { flex: 1, borderRadius: Radius.lg, borderWidth: 1, padding: Spacing.md, minHeight: 64, justifyContent: 'center', alignItems: 'center', position: 'relative' },
-  checkMark: { position: 'absolute', top: 6, right: 6, width: 18, height: 18, borderRadius: 9, justifyContent: 'center', alignItems: 'center' },
-  chipText:  { fontSize: FontSize.sm, fontWeight: FontWeight.medium, textAlign: 'center' },
-  footer:    { position: 'absolute', bottom: 0, left: 0, right: 0, padding: Spacing.base, paddingBottom: 36, borderTopWidth: StyleSheet.hairlineWidth },
-  nextBtn:   { borderRadius: Radius.lg, overflow: 'hidden', height: 56 },
-  nextGrad:  { flex: 1, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: Spacing.sm },
-  nextText:  { color: '#FFF', fontSize: FontSize.body, fontWeight: FontWeight.bold },
+  root:         { flex: 1 },
+  grid:         { padding: Spacing.base, paddingTop: 0, gap: Spacing.sm },
+  row:          { gap: Spacing.sm },
+  tile:         { flex: 1, flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, minHeight: 60, borderRadius: Radius.md, borderWidth: StyleSheet.hairlineWidth, paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm },
+  tileSelected: { borderWidth: 1.5 },
+  tileText:     { flex: 1, fontSize: FontSize.sm, fontWeight: FontWeight.medium },
 });

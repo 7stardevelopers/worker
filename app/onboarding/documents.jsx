@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import {
-  View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, Modal,
+  View, Text, ScrollView, StyleSheet, Alert, ActivityIndicator, Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { useTheme } from '@context/theme';
@@ -13,13 +12,16 @@ import { FontSize, FontWeight, Spacing, Radius } from '@constants/theme';
 import { api } from '@utils/api';
 import { alertError } from '@utils/errors';
 import { compressImage } from '@utils/image';
-import { goBackFrom, fetchMyDocuments } from '@utils/onboarding';
+import { fetchMyDocuments } from '@utils/onboarding';
 import DocumentUploadCard from '@components/DocumentUploadCard';
+import OnboardingHeader from '@components/OnboardingHeader';
+import FooterBar from '@components/FooterBar';
+import Button from '@components/Button';
 
 const DOCS = [
-  { type: 'AADHAAR_FRONT', title: 'Aadhaar Front', subtitle: 'Front side of your Aadhaar card' },
-  { type: 'AADHAAR_BACK',  title: 'Aadhaar Back',  subtitle: 'Back side of your Aadhaar card'  },
-  { type: 'PAN',           title: 'PAN Card',      subtitle: 'Your PAN card photo'              },
+  { type: 'AADHAAR_FRONT', title: 'Aadhaar front', subtitle: 'Front side of your Aadhaar card' },
+  { type: 'AADHAAR_BACK',  title: 'Aadhaar back',  subtitle: 'Back side of your Aadhaar card'  },
+  { type: 'PAN',           title: 'PAN card',      subtitle: 'A clear photo of your PAN card'  },
 ];
 
 // Backend document status → DocumentUploadCard status
@@ -59,7 +61,7 @@ export default function DocumentsScreen() {
     try {
       for (let i = 0; i < toUpload.length; i++) {
         const doc = toUpload[i];
-        setUploadStatus(`Uploading ${doc.title} (${i + 1} of ${toUpload.length})...`);
+        setUploadStatus(`${doc.title} (${i + 1} of ${toUpload.length})`);
         // Full-size phone photos exceed the API's ~6 MB request cap once base64-encoded.
         const { base64 } = await compressImage(files[doc.type].uri, { ...files[doc.type], base64: true });
         await api.post('/documents/upload', { doc_type: doc.type, content_type: 'image/jpeg', file_content: base64 }, token);
@@ -70,33 +72,24 @@ export default function DocumentsScreen() {
       if (editing) router.back();
       else router.push('/onboarding/bank');
     } catch (e) {
-      alertError('Upload Failed', e, "Couldn't upload your documents. Please try again.");
+      alertError('Upload failed', e, "Couldn't upload your documents. Please try again.");
     } finally {
       setSaving(false);
       setUploadStatus('');
     }
   };
 
+  const buttonTitle = editing ? (Object.keys(files).length ? 'Upload' : 'Done') : 'Continue';
+
   return (
     <SafeAreaView style={[styles.root, { backgroundColor: Colors.background }]} edges={['top']}>
       <ScrollView contentContainerStyle={styles.scroll}>
-
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => goBackFrom('documents')} hitSlop={12} accessibilityRole="button" accessibilityLabel="Back">
-            <Ionicons name="arrow-back" size={24} color={Colors.foreground} />
-          </TouchableOpacity>
-          <View>
-            <Text style={[styles.title, { color: Colors.foreground }]}>{editing ? 'My Documents' : 'Upload Documents'}</Text>
-            <Text style={[styles.sub, { color: Colors.mutedForeground }]}>Required for verification</Text>
-          </View>
-        </View>
-
-        <View style={[styles.notice, { backgroundColor: Colors.info + '12', borderColor: Colors.info + '40' }]}>
-          <Ionicons name="information-circle-outline" size={18} color={Colors.info} />
-          <Text style={[styles.noticeText, { color: Colors.info }]}>
-            Documents are reviewed within 24 hrs. Your data is encrypted and stored securely.
-          </Text>
-        </View>
+        <OnboardingHeader
+          stepKey="documents"
+          editing={editing}
+          title={editing ? 'My documents' : 'Documents'}
+          subtitle="Needed to verify your identity."
+        />
 
         <View style={styles.docList}>
           {DOCS.map(doc => (
@@ -104,7 +97,7 @@ export default function DocumentsScreen() {
               key={doc.type}
               title={doc.title}
               subtitle={onFile[doc.type]?.status === 'REJECTED' && !files[doc.type]
-                ? (onFile[doc.type].rejection_reason || 'Rejected — please upload a clearer photo')
+                ? (onFile[doc.type].rejection_reason || 'Rejected. Please upload a clearer photo.')
                 : doc.subtitle}
               uri={files[doc.type]?.uri ?? null}
               status={files[doc.type] ? 'pending' : (CARD_STATUS[onFile[doc.type]?.status] ?? 'empty')}
@@ -113,29 +106,25 @@ export default function DocumentsScreen() {
           ))}
         </View>
 
+        <View style={styles.note}>
+          <Ionicons name="lock-closed-outline" size={14} color={Colors.mutedForeground} />
+          <Text style={[styles.noteText, { color: Colors.mutedForeground }]}>
+            Reviewed within 24 hours. Your documents are encrypted and stored securely.
+          </Text>
+        </View>
       </ScrollView>
 
-      <View style={[styles.footer, { borderTopColor: Colors.border }]}>
-        <TouchableOpacity
-          style={[styles.nextBtn, { opacity: !saving ? 1 : 0.6 }]}
-          onPress={handleNext}
-          disabled={saving}
-          activeOpacity={0.85}
-        >
-          <LinearGradient colors={Colors.gradientPrimary} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.nextGrad}>
-            <Text style={styles.nextText}>{saving ? 'Uploading...' : editing ? (Object.keys(files).length ? 'Upload' : 'Done') : 'Next: Bank Details'}</Text>
-            <Ionicons name="arrow-forward" size={18} color="#FFF" />
-          </LinearGradient>
-        </TouchableOpacity>
-      </View>
+      <FooterBar>
+        <Button title={buttonTitle} onPress={handleNext} loading={saving} />
+      </FooterBar>
 
-      <Modal visible={saving} transparent animationType="fade" statusBarTranslucent>
-        <View style={styles.loaderOverlay}>
+      <Modal visible={saving} transparent animationType="fade" statusBarTranslucent onRequestClose={() => {}}>
+        <View style={[styles.loaderOverlay, { backgroundColor: Colors.backdrop }]}>
           <View style={[styles.loaderCard, { backgroundColor: Colors.surface }]}>
             <ActivityIndicator size="large" color={Colors.primary} />
-            <Text style={[styles.loaderTitle, { color: Colors.foreground }]}>Uploading Documents</Text>
-            <Text style={[styles.loaderSub, { color: Colors.mutedForeground }]}>{uploadStatus}</Text>
-            <Text style={[styles.loaderHint, { color: Colors.mutedForeground }]}>Please don't close the app</Text>
+            <Text style={[styles.loaderTitle, { color: Colors.foreground }]}>Uploading documents</Text>
+            {uploadStatus ? <Text style={[styles.loaderSub, { color: Colors.mutedForeground }]}>{uploadStatus}</Text> : null}
+            <Text style={[styles.loaderHint, { color: Colors.subtleForeground }]}>Please keep the app open</Text>
           </View>
         </View>
       </Modal>
@@ -144,21 +133,14 @@ export default function DocumentsScreen() {
 }
 
 const styles = StyleSheet.create({
-  root:       { flex: 1 },
-  scroll:     { padding: Spacing.base, paddingBottom: 120, gap: Spacing.base },
-  header:     { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, paddingBottom: Spacing.md },
-  title:      { fontSize: FontSize.h2, fontWeight: FontWeight.bold },
-  sub:        { fontSize: FontSize.sm },
-  notice:     { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.sm, borderRadius: Radius.lg, borderWidth: 1, padding: Spacing.md },
-  noticeText: { flex: 1, fontSize: FontSize.sm, lineHeight: 20 },
-  docList:    { gap: Spacing.sm },
-  footer:       { position: 'absolute', bottom: 0, left: 0, right: 0, padding: Spacing.base, paddingBottom: 36, borderTopWidth: StyleSheet.hairlineWidth },
-  nextBtn:      { borderRadius: Radius.lg, overflow: 'hidden', height: 56 },
-  nextGrad:     { flex: 1, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: Spacing.sm },
-  nextText:     { color: '#FFF', fontSize: FontSize.body, fontWeight: FontWeight.bold },
-  loaderOverlay:{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center', padding: Spacing.xl },
-  loaderCard:   { width: '100%', borderRadius: Radius.xl, padding: Spacing.xl, alignItems: 'center', gap: Spacing.md },
-  loaderTitle:  { fontSize: FontSize.h3, fontWeight: FontWeight.bold, textAlign: 'center' },
-  loaderSub:    { fontSize: FontSize.body, textAlign: 'center' },
-  loaderHint:   { fontSize: FontSize.sm, textAlign: 'center' },
+  root:          { flex: 1 },
+  scroll:        { padding: Spacing.base, paddingTop: 0, gap: Spacing.lg },
+  docList:       { gap: Spacing.sm },
+  note:          { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
+  noteText:      { flex: 1, fontSize: FontSize.sm, lineHeight: 18 },
+  loaderOverlay: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: Spacing.xl },
+  loaderCard:    { width: '100%', maxWidth: 320, borderRadius: Radius.lg, padding: Spacing.xl, alignItems: 'center', gap: Spacing.sm },
+  loaderTitle:   { fontSize: FontSize.h3, fontWeight: FontWeight.semibold, textAlign: 'center', marginTop: Spacing.sm },
+  loaderSub:     { fontSize: FontSize.body, textAlign: 'center' },
+  loaderHint:    { fontSize: FontSize.sm, textAlign: 'center' },
 });

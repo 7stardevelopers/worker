@@ -146,7 +146,7 @@ Always shrink photos with `compressImage()` (`utils/image.js`, ~1600px JPEG) bef
    `components/Toast.jsx`. Keep `Alert.alert` for confirmations and blocking errors.
 
 5a. **Instant vs scheduled jobs**: `job.isInstant` = the customer booked "Now" (push `type: instant_job`, longer
-   vibration, ⚡ in `JobRequestModal` / `JobCard`, listed first by `groupJobs`). The backend offers open requests in
+   vibration, a flash icon in `JobRequestModal` / `JobCard`, listed first by `groupJobs`). The backend offers open requests in
    rounds and cancels them if nobody accepts by `job.expiresAt` (`isExpiredRequest` hides them). Accepting can fail with
    "You already have a job at … that overlaps this one" / "Finish your current job before taking an instant job" —
    show it with `alertError`. Times from the API are naive UTC; normalizers convert `scheduledAt`/`expiresAt` to ISO `Z`.

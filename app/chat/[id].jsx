@@ -47,7 +47,7 @@ function timeLabel(iso) {
   return iso ? new Date(iso).toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' }) : '';
 }
 
-const sortByTime = (a, b) => (new Date(a.sentAt) - new Date(b.sentAt)) || String(a.id).localeCompare(String(b.id));
+const sortByTime = (a, b) => (new Date(a.sentAt).getTime() - new Date(b.sentAt).getTime()) || String(a.id).localeCompare(String(b.id));
 
 export default function ChatScreen() {
   const { id, name } = useLocalSearchParams();

@@ -8,7 +8,7 @@ export function normalizeCategory(cat) {
     id: cat.category_id,
     name: cat.name,
     color: cat.color ?? '#6366F1',
-    icon: cat.icon ?? '🔧',
+    icon: cat.icon ?? 'construct-outline',
     sortOrder: cat.sort_order ?? 0,
   };
 }
