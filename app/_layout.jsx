@@ -1,25 +1,4 @@
 import '../global.css';
-<<<<<<< HEAD
-import React, { useEffect } from 'react';
-import { StyleSheet } from 'react-native';
-import { Stack, router } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
-import * as Notifications from 'expo-notifications';
-import { AuthProvider } from '@context/auth';
-import { ThemeProvider, useTheme } from '@context/theme';
-import { ProviderProvider } from '@context/provider';
-import '@utils/location';
-
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowBanner: true,
-    shouldShowList:   true,
-    shouldPlaySound:  true,
-    shouldSetBadge:   true,
-  }),
-=======
 import React, { useState, useEffect } from 'react';
 import { Platform } from 'react-native';
 import { Stack } from 'expo-router';
@@ -53,7 +32,6 @@ Notifications?.setNotificationHandler({
       shouldSetBadge:   !hide,
     };
   },
->>>>>>> e26961c635b60a007766324f445890a2e88d7232
 });
 
 // Backend pushes carry no channelId, so Android delivers them on "default".
@@ -69,7 +47,8 @@ if (Notifications && Platform.OS === 'android') {
 }
 
 function AppContent() {
-  const { isDark, Colors } = useTheme();
+  const [showSplash, setShowSplash] = useState(true);
+  const { isDark } = useTheme();
 
   useEffect(() => {
     if (!Notifications) return undefined;
@@ -98,25 +77,6 @@ function AppContent() {
   return (
     <>
       <StatusBar style={isDark ? 'light' : 'dark'} />
-<<<<<<< HEAD
-      <Stack
-        screenOptions={{
-          headerShown: false,
-          animation: 'fade',
-          contentStyle: { backgroundColor: Colors.background },
-        }}
-      >
-        <Stack.Screen name="index"          options={{ animation: 'none' }} />
-        <Stack.Screen name="(auth)"         options={{ animation: 'fade' }} />
-        <Stack.Screen name="(tabs)"         options={{ animation: 'fade' }} />
-        <Stack.Screen name="job/[id]"       options={{ animation: 'slide_from_right' }} />
-        <Stack.Screen name="customer/[id]"  options={{ animation: 'slide_from_right' }} />
-        <Stack.Screen name="onboarding"     options={{ animation: 'fade' }} />
-        <Stack.Screen name="pending"        options={{ animation: 'fade' }} />
-        <Stack.Screen name="notifications"  options={{ animation: 'slide_from_right' }} />
-        <Stack.Screen name="support/index"  options={{ animation: 'slide_from_right' }} />
-      </Stack>
-=======
       <Stack screenOptions={{ headerShown: false, animation: 'fade' }}>
         <Stack.Screen name="(auth)"               options={{ animation: 'none' }} />
         <Stack.Screen name="(tabs)"               options={{ animation: 'none' }} />
@@ -134,14 +94,13 @@ function AppContent() {
       <OfflineBanner />
       <ToastHost />
       {showSplash && <SplashOverlay onDone={() => setShowSplash(false)} />}
->>>>>>> e26961c635b60a007766324f445890a2e88d7232
     </>
   );
 }
 
 export default function RootLayout() {
   return (
-    <GestureHandlerRootView style={styles.root}>
+    <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <ThemeProvider>
           <AuthProvider>
@@ -154,7 +113,3 @@ export default function RootLayout() {
     </GestureHandlerRootView>
   );
 }
-
-const styles = StyleSheet.create({
-  root: { flex: 1 },
-});

@@ -5,50 +5,31 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-<<<<<<< HEAD
-=======
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
->>>>>>> e26961c635b60a007766324f445890a2e88d7232
 import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { useTheme } from '@context/theme';
 import { useAuth } from '@context/auth';
-import { FontSize, FontWeight, Spacing, Radius } from '@constants/theme';
+import { FontSize, FontWeight, Spacing, Radius, Shadow } from '@constants/theme';
 import { api } from '@utils/api';
 import { alertError, friendlyError } from '@utils/errors';
 import { normalizeJob } from '@utils/normalize';
-<<<<<<< HEAD
-import { formatINR } from '@utils/format';
-import { uploadToS3 } from '@utils/s3Upload';
-import { startLocationTracking, stopLocationTracking } from '@utils/location';
-import ScreenHeader from '@components/ScreenHeader';
-=======
 import { formatINR } from '@utils/money';
 import { whenLabel, needsCashCollection, OPEN_STATUSES } from '@utils/jobs';
 import { uploadToS3 } from '@utils/s3Upload';
 import { compressImage } from '@utils/image';
 import { startLocationTracking, stopLocationTracking, needsTracking, reconcileTracking } from '@utils/location';
 import { useCustomerCall } from '@utils/useCustomerCall';
->>>>>>> e26961c635b60a007766324f445890a2e88d7232
 import StatusPill from '@components/StatusPill';
 import PaymentBadge from '@components/PaymentBadge';
 import OTPVerifySheet from '@components/OTPVerifySheet';
-<<<<<<< HEAD
-import LoadingScreen from '@components/LoadingScreen';
-import EmptyState from '@components/EmptyState';
-import FooterBar from '@components/FooterBar';
-import Button from '@components/Button';
-
-const MAX_PROOF_PHOTOS = 2;
-=======
 import Skeleton from '@components/Skeleton';
 import EmptyState from '@components/EmptyState';
 import JobTimeline from '@components/JobTimeline';
 import RateCustomerCard from '@components/RateCustomerCard';
 import BatteryBanner from '@components/BatteryBanner';
 import { toast } from '@components/Toast';
->>>>>>> e26961c635b60a007766324f445890a2e88d7232
 
 // Opens the native Maps app for turn-by-turn directions. Background location
 // tracking keeps running as an OS service whichever app is in front.
@@ -71,15 +52,6 @@ function openNavigation(address) {
 }
 
 const TRANSITION_ACTIONS = {
-<<<<<<< HEAD
-  PENDING:     { label: 'Accept job',      icon: 'checkmark',          isAccept: true },
-  ACCEPTED:    { label: 'Start trip',      icon: 'navigate-outline',   next: 'EN_ROUTE' },
-  EN_ROUTE:    { label: 'Enter door code', icon: 'keypad-outline',     next: 'IN_PROGRESS', needsDoorOtp: true },
-  IN_PROGRESS: { label: 'Complete job',    icon: 'checkmark-done',     next: 'COMPLETED', needsProof: true },
-};
-
-const NAV_STATUSES = ['ACCEPTED', 'EN_ROUTE'];
-=======
   PENDING:     { label: 'Accept Job',       icon: 'checkmark-outline',        colorKey: 'success', isAccept: true },
   ACCEPTED:    { next: 'EN_ROUTE',    label: "I'm on my way",   icon: 'navigate-outline',   colorKey: 'info' },
   EN_ROUTE:    { next: 'IN_PROGRESS', label: 'Enter door code', icon: 'keypad-outline',     colorKey: 'secondary', needsDoorOtp: true },
@@ -98,30 +70,20 @@ function QuickAction({ icon, label, onPress, Colors, loading }) {
     </TouchableOpacity>
   );
 }
->>>>>>> e26961c635b60a007766324f445890a2e88d7232
 
 export default function JobDetailScreen() {
   const { id } = useLocalSearchParams();
   const { Colors } = useTheme();
   const { token } = useAuth();
-<<<<<<< HEAD
-
-  const [job,           setJob]           = useState(null);
-  const [loading,       setLoading]       = useState(true);
-  const [loadError,     setLoadError]     = useState('');
-=======
   const { calling, callCustomer } = useCustomerCall(id, token);
   const [job,           setJob]           = useState(null);
   const [loading,       setLoading]       = useState(true);
   const [loadError,     setLoadError]     = useState(null);
   const [refreshing,    setRefreshing]    = useState(false);
->>>>>>> e26961c635b60a007766324f445890a2e88d7232
   const [actionLoading, setActionLoading] = useState(false);
   const [showOtpSheet,  setShowOtpSheet]  = useState(false);
   const [otpError,      setOtpError]      = useState('');
   const [proofUris,     setProofUris]     = useState([]);
-<<<<<<< HEAD
-=======
   const [helpLoading,   setHelpLoading]   = useState(false);
   // Road distance/ETA from the backend — the same cached value the customer sees.
   const [eta,           setEta]           = useState(null);
@@ -139,7 +101,6 @@ export default function JobDetailScreen() {
       // Non-fatal: the card just hides the distance line.
     }
   }, [id, token]);
->>>>>>> e26961c635b60a007766324f445890a2e88d7232
 
   const fetchJob = useCallback(async () => {
     if (!token || !id) return;
@@ -147,20 +108,6 @@ export default function JobDetailScreen() {
       const res = await api.get(`/bookings/${id}`, token);
       const j = normalizeJob(res.data);
       setJob(j);
-<<<<<<< HEAD
-      setLoadError('');
-      if (j.status === 'ACCEPTED' && j.scheduledAt) {
-        const minsUntil = (new Date(j.scheduledAt).getTime() - Date.now()) / 60000;
-        if (minsUntil <= 60) startLocationTracking().catch(() => {});
-      }
-      // Job may have been cancelled/rejected by someone else (customer, admin)
-      // since the last fetch — make sure background GPS isn't left running.
-      if (['CANCELLED', 'REJECTED', 'COMPLETED'].includes(j.status)) {
-        stopLocationTracking().catch(() => {});
-      }
-    } catch (e) {
-      setLoadError(e.message || 'Could not load this job.');
-=======
       setLoadError(null);
       // Keep GPS in step with the job — it may have been cancelled by the
       // customer/admin since the last fetch.
@@ -168,12 +115,12 @@ export default function JobDetailScreen() {
       else if (['CANCELLED', 'REJECTED', 'COMPLETED'].includes(j.status)) stopLocationTracking().catch(() => {});
     } catch (e) {
       setLoadError(e);
->>>>>>> e26961c635b60a007766324f445890a2e88d7232
     }
   }, [id, token]);
 
   useFocusEffect(
     useCallback(() => {
+      setLoading(true);
       fetchJob().finally(() => setLoading(false));
       if (navAfterPermission.current) {
         navAfterPermission.current = false;
@@ -186,11 +133,6 @@ export default function JobDetailScreen() {
     }, [fetchJob])
   );
 
-<<<<<<< HEAD
-  const retry = () => {
-    setLoading(true);
-    fetchJob().finally(() => setLoading(false));
-=======
   const showEta = job?.status === 'ACCEPTED' || job?.status === 'EN_ROUTE';
   useEffect(() => {
     if (!showEta) { setEta(null); return undefined; }
@@ -203,7 +145,6 @@ export default function JobDetailScreen() {
     setRefreshing(true);
     await Promise.all([fetchJob(), showEta ? fetchEta() : null]);
     setRefreshing(false);
->>>>>>> e26961c635b60a007766324f445890a2e88d7232
   };
 
   const doStatusTransition = async (nextStatus) => {
@@ -243,43 +184,25 @@ export default function JobDetailScreen() {
       reconcileTracking(token).catch(() => {});
       await fetchJob();
     } catch (e) {
-<<<<<<< HEAD
-      setOtpError(e.message || 'Incorrect code. Try again.');
-=======
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
       setOtpError(friendlyError(e, 'Incorrect OTP. Try again.') ?? '');
->>>>>>> e26961c635b60a007766324f445890a2e88d7232
     } finally {
       setActionLoading(false);
     }
   };
 
   const handlePickProof = async () => {
-<<<<<<< HEAD
-    const perm = await ImagePicker.requestCameraPermissionsAsync();
-    if (!perm.granted) {
-      Alert.alert('Camera access needed', 'Allow camera access in Settings to take proof photos.');
-      return;
-    }
-    const result = await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.7 });
-    if (result.canceled) return;
-    const uri = result.assets[0].uri;
-    setProofUris(prev => [...prev, uri].slice(0, MAX_PROOF_PHOTOS));
-=======
     const result = await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 1 });
     if (result.canceled) return;
     const { uri, width, height } = result.assets[0];
     // Shrink right away so the upload at "Mark as Complete" is quick on mobile data.
     const small = await compressImage(uri, { width, height }).catch(() => ({ uri }));
     setProofUris(prev => [...prev, small.uri]);
->>>>>>> e26961c635b60a007766324f445890a2e88d7232
   };
-
-  const removeProof = (uri) => setProofUris(prev => prev.filter(u => u !== uri));
 
   const handleComplete = async () => {
     if (proofUris.length === 0) {
-      Alert.alert('Photo required', 'Take at least one photo of the completed work.');
+      Alert.alert('Proof Required', 'Take at least 1 photo as proof of completion');
       return;
     }
     setActionLoading(true);
@@ -292,14 +215,10 @@ export default function JobDetailScreen() {
         uploadedUrls.push(object_url);
       }
       await api.post(`/bookings/${id}/complete`, { proof_photos: uploadedUrls }, token);
-<<<<<<< HEAD
-      await stopLocationTracking().catch(() => {});
-=======
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       // Done on our side → free for the next job; GPS only if another job needs it.
       await reconcileTracking(token).catch(() => {});
       toast.success('Marked as done', 'Waiting for the customer to confirm.');
->>>>>>> e26961c635b60a007766324f445890a2e88d7232
       setProofUris([]);
       await fetchJob();
     } catch (e) {
@@ -326,18 +245,6 @@ export default function JobDetailScreen() {
     }
   };
 
-<<<<<<< HEAD
-  const handleCall = async () => {
-    try {
-      await api.post('/calls/initiate', { booking_id: id, target: 'customer' }, token);
-      Alert.alert('Calling', 'Connecting you now. Please answer the incoming call.');
-    } catch (e) {
-      Alert.alert('Call failed', e.message ?? 'Please try again.');
-    }
-  };
-
-  const action = TRANSITION_ACTIONS[job?.status];
-=======
   // Workers can't cancel an accepted job themselves — support can.
   const getHelp = async () => {
     setHelpLoading(true);
@@ -358,7 +265,6 @@ export default function JobDetailScreen() {
       setHelpLoading(false);
     }
   };
->>>>>>> e26961c635b60a007766324f445890a2e88d7232
 
   // Once the worker has tapped Done, the job waits for the customer — no action left here.
   const waitingForCustomer = job?.status === 'IN_PROGRESS' && !!job?.providerDoneAt;
@@ -374,23 +280,6 @@ export default function JobDetailScreen() {
     doStatusTransition(action.next);
   };
 
-<<<<<<< HEAD
-  if (loading || !job) {
-    return (
-      <SafeAreaView style={[styles.root, { backgroundColor: Colors.background }]} edges={['top', 'bottom']}>
-        {loading ? <LoadingScreen overlay /> : null}
-        <ScreenHeader back title="Job details" />
-        {!loading ? (
-          <View style={styles.centerFill}>
-            <EmptyState
-              icon="alert-circle-outline"
-              title="Couldn't load this job"
-              subtitle={loadError || 'Please check your connection and try again.'}
-              cta={{ label: 'Try again', onPress: retry }}
-            />
-          </View>
-        ) : null}
-=======
   const header = (
     <View style={styles.header}>
       <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} accessibilityLabel="Back">
@@ -409,26 +298,10 @@ export default function JobDetailScreen() {
       <SafeAreaView style={[styles.root, { backgroundColor: Colors.background }]} edges={['top']}>
         {header}
         {Array.from({ length: 4 }).map((_, i) => <Skeleton.BookingCard key={i} />)}
->>>>>>> e26961c635b60a007766324f445890a2e88d7232
       </SafeAreaView>
     );
   }
 
-<<<<<<< HEAD
-  const scheduled = job.scheduledAt
-    ? new Date(job.scheduledAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })
-    : 'As soon as possible';
-  const hasCoords = job.address.lat != null && job.address.lng != null;
-  const needsMoreProof = action?.needsProof && proofUris.length === 0;
-
-  return (
-    <SafeAreaView style={[styles.root, { backgroundColor: Colors.background }]} edges={['top']}>
-      <ScreenHeader back title="Job details" right={<StatusPill status={job.status} small />} />
-
-      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-
-        {/* Summary */}
-=======
   if (!job) {
     return (
       <SafeAreaView style={[styles.root, { backgroundColor: Colors.background }]} edges={['top']}>
@@ -493,21 +366,9 @@ export default function JobDetailScreen() {
         )}
 
         {/* Service & items */}
->>>>>>> e26961c635b60a007766324f445890a2e88d7232
         <View style={[styles.card, { backgroundColor: Colors.surface, borderColor: Colors.border }]}>
+          <Text style={[styles.cardTitle, { color: Colors.mutedForeground }]}>SERVICE</Text>
           <Text style={[styles.serviceName, { color: Colors.foreground }]}>{job.service.name}</Text>
-<<<<<<< HEAD
-          <Text style={[styles.meta, { color: Colors.mutedForeground }]}>
-            {scheduled} · {job.service.duration} min
-          </Text>
-          <View style={[styles.earningBlock, { borderTopColor: Colors.borderLight }]}>
-            <Text style={[styles.label, { color: Colors.mutedForeground }]}>Your earning</Text>
-            <Text style={[styles.earning, { color: Colors.foreground }]}>{formatINR(job.providerEarning)}</Text>
-            <Text style={[styles.meta, { color: Colors.mutedForeground }]}>
-              Total {formatINR(job.totalAmount)} · Platform fee {formatINR(job.platformFee)}
-            </Text>
-          </View>
-=======
           <View style={styles.metaRow}>
             <Ionicons name="time-outline" size={14} color={Colors.mutedForeground} />
             <Text style={[styles.metaText, { color: Colors.mutedForeground }]}>{job.isInstant ? `⚡ Instant · booked ${whenLabel(job.scheduledAt)}` : whenLabel(job.scheduledAt)} • ~{job.service.duration} min</Text>
@@ -531,41 +392,10 @@ export default function JobDetailScreen() {
               <Text style={[styles.notesText, { color: Colors.foreground }]}>{job.customerNotes}</Text>
             </View>
           ) : null}
->>>>>>> e26961c635b60a007766324f445890a2e88d7232
         </View>
 
         {/* Customer */}
         <View style={[styles.card, { backgroundColor: Colors.surface, borderColor: Colors.border }]}>
-<<<<<<< HEAD
-          <Text style={[styles.label, { color: Colors.mutedForeground }]}>Customer</Text>
-          <View style={styles.customerRow}>
-            <TouchableOpacity
-              style={styles.customerInfo}
-              onPress={() => router.push(`/customer/${job.customerId}`)}
-              activeOpacity={0.7}
-              disabled={!job.customerId}
-            >
-              {job.customerPhoto ? (
-                <Image source={{ uri: job.customerPhoto }} style={styles.avatar} />
-              ) : (
-                <View style={[styles.avatar, styles.avatarFallback, { backgroundColor: Colors.surfaceRaised }]}>
-                  <Ionicons name="person" size={18} color={Colors.mutedForeground} />
-                </View>
-              )}
-              <Text style={[styles.customerName, { color: Colors.foreground }]} numberOfLines={1}>
-                {job.customerName}
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.iconBtn, { borderColor: Colors.border }]}
-              onPress={handleCall}
-              activeOpacity={0.7}
-              accessibilityLabel="Call customer"
-            >
-              <Ionicons name="call-outline" size={18} color={Colors.primary} />
-            </TouchableOpacity>
-          </View>
-=======
           <Text style={[styles.cardTitle, { color: Colors.mutedForeground }]}>CUSTOMER</Text>
           <TouchableOpacity style={styles.customerRow} onPress={() => router.push(`/customer/${job.customerId}`)} disabled={!isAssigned}>
             {job.customerPhoto ? (
@@ -585,24 +415,14 @@ export default function JobDetailScreen() {
               {canNavigate && <QuickAction icon="navigate-outline" label="Navigate" onPress={() => openNavigation(job.address)} Colors={Colors} />}
             </View>
           )}
->>>>>>> e26961c635b60a007766324f445890a2e88d7232
         </View>
 
         {/* Address */}
         <View style={[styles.card, { backgroundColor: Colors.surface, borderColor: Colors.border }]}>
-          <Text style={[styles.label, { color: Colors.mutedForeground }]}>Location</Text>
-          <View style={styles.addressRow}>
-            <Text style={[styles.body, { color: Colors.foreground }]}>{job.address.fullAddress}</Text>
-            {hasCoords && NAV_STATUSES.includes(job.status) ? (
-              <TouchableOpacity
-                style={[styles.iconBtn, { borderColor: Colors.border }]}
-                onPress={() => openNavigation(job.address.lat, job.address.lng)}
-                activeOpacity={0.7}
-                accessibilityLabel="Open directions"
-              >
-                <Ionicons name="navigate-outline" size={18} color={Colors.primary} />
-              </TouchableOpacity>
-            ) : null}
+          <Text style={[styles.cardTitle, { color: Colors.mutedForeground }]}>LOCATION</Text>
+          <View style={styles.metaRow}>
+            <Ionicons name="location-outline" size={14} color={Colors.primary} />
+            <Text style={[styles.metaText, { color: Colors.foreground }]}>{job.address.fullAddress}</Text>
           </View>
           {showEta && eta && (
             <View style={styles.metaRow}>
@@ -614,18 +434,6 @@ export default function JobDetailScreen() {
           )}
         </View>
 
-<<<<<<< HEAD
-        {/* Customer notes */}
-        {job.customerNotes ? (
-          <View style={[styles.card, { backgroundColor: Colors.surface, borderColor: Colors.border }]}>
-            <Text style={[styles.label, { color: Colors.mutedForeground }]}>Notes from customer</Text>
-            <Text style={[styles.body, { color: Colors.foreground }]}>{job.customerNotes}</Text>
-          </View>
-        ) : null}
-
-        {/* Proof photos */}
-        {job.status === 'IN_PROGRESS' && (
-=======
         {/* Two-sided completion status */}
         {job.status === 'IN_PROGRESS' && (job.disputedAt || waitingForCustomer || job.customerDoneAt) && (
           <View style={[styles.card, styles.doneCard, {
@@ -654,47 +462,27 @@ export default function JobDetailScreen() {
 
         {/* Proof photos */}
         {job.status === 'IN_PROGRESS' && !waitingForCustomer && (
->>>>>>> e26961c635b60a007766324f445890a2e88d7232
           <View style={[styles.card, { backgroundColor: Colors.surface, borderColor: Colors.border }]}>
-            <Text style={[styles.label, { color: Colors.mutedForeground }]}>Proof of work</Text>
+            <Text style={[styles.cardTitle, { color: Colors.mutedForeground }]}>PROOF PHOTOS</Text>
             <View style={styles.proofRow}>
-<<<<<<< HEAD
-              {proofUris.map(uri => (
-                <TouchableOpacity key={uri} onPress={() => removeProof(uri)} activeOpacity={0.8} accessibilityLabel="Remove photo">
-                  <Image source={{ uri }} style={[styles.proofThumb, { backgroundColor: Colors.surfaceRaised }]} />
-                  <View style={[styles.proofRemove, { backgroundColor: Colors.backdrop }]}>
-                    <Ionicons name="close" size={14} color={Colors.onPrimary} />
-                  </View>
-=======
               {proofUris.map((uri, i) => (
                 <TouchableOpacity key={uri} onLongPress={() => setProofUris(prev => prev.filter((_, j) => j !== i))}>
                   <Image source={{ uri }} style={[styles.proofThumb, { borderColor: Colors.border }]} />
->>>>>>> e26961c635b60a007766324f445890a2e88d7232
                 </TouchableOpacity>
               ))}
-              {proofUris.length < MAX_PROOF_PHOTOS && (
+              {proofUris.length < 2 && (
                 <TouchableOpacity
-                  style={[styles.proofThumb, styles.proofAdd, { borderColor: Colors.border }]}
+                  style={[styles.proofAdd, { backgroundColor: Colors.primary + '15', borderColor: Colors.primary + '40' }]}
                   onPress={handlePickProof}
-<<<<<<< HEAD
-                  activeOpacity={0.7}
-                  accessibilityLabel="Take photo"
-=======
                   activeOpacity={0.8}
                   accessibilityLabel="Take proof photo"
->>>>>>> e26961c635b60a007766324f445890a2e88d7232
                 >
-                  <Ionicons name="camera-outline" size={22} color={Colors.mutedForeground} />
+                  <Ionicons name="camera-outline" size={22} color={Colors.primary} />
                 </TouchableOpacity>
               )}
             </View>
-<<<<<<< HEAD
-            <Text style={[styles.meta, { color: Colors.mutedForeground }]}>
-              Take 1 or 2 photos of the finished work. Tap a photo to remove it.
-=======
             <Text style={[styles.proofHint, { color: Colors.mutedForeground }]}>
               Take 1–2 photos of the completed work. Long-press a photo to remove it.
->>>>>>> e26961c635b60a007766324f445890a2e88d7232
             </Text>
           </View>
         )}
@@ -721,19 +509,6 @@ export default function JobDetailScreen() {
         )}
       </ScrollView>
 
-<<<<<<< HEAD
-      {action ? (
-        <FooterBar>
-          <Button
-            title={action.label}
-            icon={action.icon}
-            onPress={handleAction}
-            loading={actionLoading && !showOtpSheet}
-            disabled={needsMoreProof}
-          />
-        </FooterBar>
-      ) : null}
-=======
       {action && (
         <View style={[styles.actionBar, { backgroundColor: Colors.background, borderTopColor: Colors.border }]}>
           <TouchableOpacity
@@ -749,7 +524,6 @@ export default function JobDetailScreen() {
           </TouchableOpacity>
         </View>
       )}
->>>>>>> e26961c635b60a007766324f445890a2e88d7232
 
       <OTPVerifySheet
         visible={showOtpSheet}
@@ -764,29 +538,6 @@ export default function JobDetailScreen() {
 }
 
 const styles = StyleSheet.create({
-<<<<<<< HEAD
-  root:           { flex: 1 },
-  centerFill:     { flex: 1, justifyContent: 'center' },
-  scroll:         { padding: Spacing.base, paddingTop: Spacing.xs, gap: Spacing.md },
-  card:           { borderRadius: Radius.lg, borderWidth: StyleSheet.hairlineWidth, padding: Spacing.base, gap: Spacing.sm },
-  label:          { fontSize: FontSize.xs, fontWeight: FontWeight.medium, textTransform: 'uppercase', letterSpacing: 0.6 },
-  serviceName:    { fontSize: FontSize.h2, fontWeight: FontWeight.semibold },
-  meta:           { fontSize: FontSize.sm, lineHeight: 18 },
-  body:           { flex: 1, fontSize: FontSize.body, lineHeight: 22 },
-  earningBlock:   { borderTopWidth: StyleSheet.hairlineWidth, paddingTop: Spacing.md, marginTop: Spacing.xs, gap: 2 },
-  earning:        { fontSize: FontSize.display, fontWeight: FontWeight.bold, letterSpacing: -0.5 },
-  customerRow:    { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
-  customerInfo:   { flex: 1, flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
-  avatar:         { width: 40, height: 40, borderRadius: 20 },
-  avatarFallback: { justifyContent: 'center', alignItems: 'center' },
-  customerName:   { flex: 1, fontSize: FontSize.body, fontWeight: FontWeight.medium },
-  iconBtn:        { width: 40, height: 40, borderRadius: 20, borderWidth: StyleSheet.hairlineWidth, justifyContent: 'center', alignItems: 'center' },
-  addressRow:     { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.md },
-  proofRow:       { flexDirection: 'row', gap: Spacing.sm, flexWrap: 'wrap' },
-  proofThumb:     { width: 84, height: 84, borderRadius: Radius.md },
-  proofAdd:       { borderWidth: 1, borderStyle: 'dashed', justifyContent: 'center', alignItems: 'center' },
-  proofRemove:    { position: 'absolute', top: 4, right: 4, width: 22, height: 22, borderRadius: 11, justifyContent: 'center', alignItems: 'center' },
-=======
   root:          { flex: 1 },
   scroll:        { paddingBottom: 130, gap: Spacing.md },
   header:        { flexDirection: 'row', alignItems: 'center', padding: Spacing.base, gap: Spacing.md },
@@ -836,5 +587,4 @@ const styles = StyleSheet.create({
   actionBtn:     { borderRadius: Radius.lg, overflow: 'hidden', height: 56 },
   actionGrad:    { flex: 1, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: Spacing.sm },
   actionText:    { color: '#FFF', fontSize: FontSize.body, fontWeight: FontWeight.bold },
->>>>>>> e26961c635b60a007766324f445890a2e88d7232
 });

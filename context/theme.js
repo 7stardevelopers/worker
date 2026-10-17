@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useColorScheme } from 'react-native';
 import { getColors } from '@constants/theme';
 
 const ThemeContext = createContext({
@@ -12,11 +13,8 @@ const ThemeContext = createContext({
 const STORAGE_KEY = 'app_theme_mode';
 
 export function ThemeProvider({ children }) {
-<<<<<<< HEAD
-=======
   const systemScheme = useColorScheme();
   // Start dark (the app's default) so launch doesn't flash light before storage loads.
->>>>>>> e26961c635b60a007766324f445890a2e88d7232
   const [mode, setMode] = useState('dark');
 
   useEffect(() => {

@@ -48,50 +48,11 @@ TaskManager.defineTask(LOCATION_TASK, async ({ data, error }) => {
     console.warn('[Location] Task error:', error.message);
     return;
   }
-<<<<<<< HEAD
-  if (!data) {
-    console.log('[Location] Task fired with no data');
-    return;
-  }
-
-  const { locations } = data;
-  const loc = locations?.[0];
-  if (!loc) {
-    console.log('[Location] Task fired with no locations in payload');
-    return;
-  }
-
-  console.log('[Location] Got fix:', loc.coords.latitude, loc.coords.longitude, '| BASE_URL:', BASE_URL ?? 'NOT SET');
-
-  try {
-    const token = await AsyncStorage.getItem('auth_access_token');
-    if (!token) {
-      console.warn('[Location] No auth token in storage — skipping PATCH');
-      return;
-    }
-
-    const res = await fetch(`${BASE_URL}/providers/me/location`, {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
-      body: JSON.stringify({
-        lat: loc.coords.latitude,
-        lng: loc.coords.longitude,
-      }),
-    });
-    console.log('[Location] PATCH /providers/me/location →', res.status);
-  } catch (e) {
-    console.warn('[Location] PATCH failed (non-fatal):', e.message);
-  }
-=======
   // Android can deliver a batch; the last entry is the newest fix.
   const locs = data?.locations;
   const loc = locs?.[locs.length - 1];
   if (!loc) return;
   await sendLocation(loc);
->>>>>>> e26961c635b60a007766324f445890a2e88d7232
 });
 
 /** True when the permissions this build needs are granted (foreground only in Expo Go / Android). */
@@ -189,11 +150,7 @@ export async function startLocationTracking({ silent = false, enRoute = false, k
       killServiceOnDestroy: true,
     },
   });
-<<<<<<< HEAD
-  console.log('[Location] Started background tracking task');
-=======
   currentMode = mode;
->>>>>>> e26961c635b60a007766324f445890a2e88d7232
   return true;
 }
 
@@ -205,11 +162,6 @@ export async function stopLocationTracking() {
   }
   if (IS_EXPO_GO) return;
   const isRunning = await Location.hasStartedLocationUpdatesAsync(LOCATION_TASK).catch(() => false);
-<<<<<<< HEAD
-  if (isRunning) {
-    await Location.stopLocationUpdatesAsync(LOCATION_TASK);
-    console.log('[Location] Stopped background tracking task');
-=======
   if (isRunning) await Location.stopLocationUpdatesAsync(LOCATION_TASK);
 }
 
@@ -242,6 +194,5 @@ export async function reconcileTracking(token) {
     else await stopLocationTracking();
   } catch (e) {
     console.warn('[Location] reconcile failed (non-fatal):', e.message);
->>>>>>> e26961c635b60a007766324f445890a2e88d7232
   }
 }

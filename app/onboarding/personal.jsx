@@ -1,23 +1,8 @@
 import React, { useState } from 'react';
-import { View, ScrollView, StyleSheet, Alert, KeyboardAvoidingView } from 'react-native';
+import {
+  View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Alert,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-<<<<<<< HEAD
-import { router } from 'expo-router';
-import { useTheme } from '@context/theme';
-import { useAuth } from '@context/auth';
-import { useProvider } from '@context/provider';
-import { Spacing } from '@constants/theme';
-import { api } from '@utils/api';
-import OnboardingHeader from '@components/OnboardingHeader';
-import TextField from '@components/TextField';
-import FooterBar from '@components/FooterBar';
-import Button from '@components/Button';
-
-export default function PersonalScreen() {
-  const { Colors } = useTheme();
-  const { user, token, updateUser } = useAuth();
-  const { profile } = useProvider();
-=======
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -37,20 +22,19 @@ export default function PersonalScreen() {
   // Opened from Profile → save and return instead of continuing onboarding.
   const editing = useLocalSearchParams().mode === 'edit';
   const { token } = useAuth();
->>>>>>> e26961c635b60a007766324f445890a2e88d7232
 
-  const [name,    setName]    = useState(user?.name ?? '');
-  const [bio,     setBio]     = useState(profile?.bio ?? '');
-  const [years,   setYears]   = useState(profile?.years_experience != null ? String(profile.years_experience) : '');
+  const [name, setName]   = useState(user?.name ?? '');
+  const [bio,  setBio]    = useState(profile?.bio ?? '');
+  const [years, setYears] = useState(String(profile?.years_experience ?? ''));
   const [loading, setLoading] = useState(false);
 
   const handleNext = async () => {
-    if (!name.trim()) { Alert.alert('Required', 'Please enter your name.'); return; }
+    if (!name.trim()) { Alert.alert('Required', 'Please enter your name'); return; }
     setLoading(true);
     try {
       await Promise.all([
         api.patch('/auth/me', { name: name.trim() }, token),
-        api.patch('/providers/me', { bio: bio.trim(), years_experience: parseInt(years, 10) || 0 }, token),
+        api.patch('/providers/me', { bio: bio.trim(), years_experience: parseInt(years) || 0 }, token),
       ]);
       await updateUser({ name: name.trim() });
       if (editing) { await fetchProfile(); router.back(); }
@@ -64,15 +48,8 @@ export default function PersonalScreen() {
 
   return (
     <SafeAreaView style={[styles.root, { backgroundColor: Colors.background }]} edges={['top']}>
-      <KeyboardAvoidingView behavior="padding" style={styles.flex}>
-        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-          <OnboardingHeader step={1} title="Personal details" subtitle="Tell customers a little about yourself." />
+      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
 
-<<<<<<< HEAD
-          <View style={styles.form}>
-            <TextField
-              label="Full name"
-=======
         {editing ? (
           <TouchableOpacity onPress={() => router.back()} style={styles.editBack} accessibilityLabel="Back">
             <Ionicons name="arrow-back" size={24} color={Colors.foreground} />
@@ -98,40 +75,43 @@ export default function PersonalScreen() {
             <Text style={[styles.label, { color: Colors.mutedForeground }]}>Full Name *</Text>
             <TextInput
               style={[styles.input, { backgroundColor: Colors.inputBg, borderColor: Colors.border, color: Colors.foreground }]}
->>>>>>> e26961c635b60a007766324f445890a2e88d7232
               placeholder="Your full name"
+              placeholderTextColor={Colors.subtleForeground}
               value={name}
               onChangeText={setName}
-              autoCapitalize="words"
-              textContentType="name"
-              autoComplete="name"
             />
-            <TextField
-              label="Years of experience"
+          </View>
+
+          <View>
+            <Text style={[styles.label, { color: Colors.mutedForeground }]}>Years of Experience</Text>
+            <TextInput
+              style={[styles.input, { backgroundColor: Colors.inputBg, borderColor: Colors.border, color: Colors.foreground }]}
               placeholder="e.g. 3"
+              placeholderTextColor={Colors.subtleForeground}
               value={years}
-              onChangeText={v => setYears(v.replace(/\D/g, ''))}
-              keyboardType="number-pad"
+              onChangeText={setYears}
+              keyboardType="numeric"
               maxLength={2}
             />
-            <TextField
-              label="Short bio (optional)"
-              placeholder="Your experience and expertise"
+          </View>
+
+          <View>
+            <Text style={[styles.label, { color: Colors.mutedForeground }]}>Short Bio (optional)</Text>
+            <TextInput
+              style={[styles.textarea, { backgroundColor: Colors.inputBg, borderColor: Colors.border, color: Colors.foreground }]}
+              placeholder="Briefly describe your experience and expertise..."
+              placeholderTextColor={Colors.subtleForeground}
               value={bio}
               onChangeText={setBio}
               multiline
+              numberOfLines={4}
+              textAlignVertical="top"
               maxLength={250}
-              hint={`${bio.length}/250`}
             />
+            <Text style={[styles.charCount, { color: Colors.subtleForeground }]}>{bio.length}/250</Text>
           </View>
-        </ScrollView>
+        </View>
 
-<<<<<<< HEAD
-        <FooterBar>
-          <Button title="Continue" onPress={handleNext} loading={loading} />
-        </FooterBar>
-      </KeyboardAvoidingView>
-=======
       </ScrollView>
 
       <View style={[styles.footer, { borderTopColor: Colors.border }]}>
@@ -147,18 +127,11 @@ export default function PersonalScreen() {
           </LinearGradient>
         </TouchableOpacity>
       </View>
->>>>>>> e26961c635b60a007766324f445890a2e88d7232
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-<<<<<<< HEAD
-  root:   { flex: 1 },
-  flex:   { flex: 1 },
-  scroll: { padding: Spacing.base, paddingTop: 0, gap: Spacing.lg },
-  form:   { gap: Spacing.lg },
-=======
   root:          { flex: 1 },
   scroll:        { padding: Spacing.base, paddingBottom: 120, gap: Spacing.xl },
   progress:      { flexDirection: 'row', gap: 6, justifyContent: 'center' },
@@ -177,5 +150,4 @@ const styles = StyleSheet.create({
   nextBtn:       { borderRadius: Radius.lg, overflow: 'hidden', height: 56 },
   nextGrad:      { flex: 1, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: Spacing.sm },
   nextText:      { color: '#FFF', fontSize: FontSize.body, fontWeight: FontWeight.bold },
->>>>>>> e26961c635b60a007766324f445890a2e88d7232
 });
